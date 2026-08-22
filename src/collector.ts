@@ -110,8 +110,9 @@ ${headlineList}
 }`;
 
   try {
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: modelName,
       contents: prompt,
       config: { responseMimeType: 'application/json', temperature: 0.2 },
     });

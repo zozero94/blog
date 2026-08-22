@@ -97,8 +97,9 @@ ${publicDataHtmlGuide}
 
 위의 교차 검증된 보도 자료와 공공기관 공식 데이터를 바탕으로, 독자들에게 최고의 신뢰와 실질적인 해결책을 주는 완결형 단일 주제 블로그 포스팅을 작성해 주세요.`;
 
+  const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const response = await ai.models.generateContent({
-    model: 'gemini-3.6-flash',
+    model: modelName,
     contents: prompt,
     config: {
       systemInstruction,

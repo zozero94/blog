@@ -68,8 +68,9 @@ ${agentDescriptions}
 ]`;
 
   try {
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: modelName,
       contents: prompt,
       config: { responseMimeType: 'application/json', temperature: 0.3 },
     });
@@ -150,8 +151,9 @@ ${currentPost.htmlContent}
 
 위 12인의 지적 사항을 100% 반영하여 한 차원 높은 완성도의 최종 원고로 리라이팅해 주세요.`;
 
+  const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const response = await ai.models.generateContent({
-    model: 'gemini-3.6-flash',
+    model: modelName,
     contents: prompt,
     config: {
       systemInstruction,
