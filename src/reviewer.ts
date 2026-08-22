@@ -25,13 +25,18 @@ export const REVIEWER_AGENTS = [
   { 
     id: 'mobile_web_ux', 
     name: '반응형 웹 & 모바일 UX 아키텍트', 
-    role: '스마트폰 작은 화면과 PC 웹 양쪽에서 문단 길이(2~4문장), 표(Table) 가로 스크롤/가독성, 둥근 콜아웃 박스, 시각적 구분선, 폰트 강조 등 이탈률 방지 및 완벽한 랜딩 디자인 검증' 
+    role: '스마트폰 화면(360~430px)과 PC 웹 양쪽에서 문단 길이(2~4문장), 표(Table) 가로 스크롤/가독성, 둥근 콜아웃 박스, 시각적 구분선, 폰트 강조 등 이탈률 방지 및 완벽한 랜딩 디자인 검증' 
+  },
+  { 
+    id: 'realtime_factchecker', 
+    name: '실시간 시장 지표 팩트체커', 
+    role: '원고에 언급된 환율, 금리, 주가, 실거래가 수치와 방향성 표현(고환율/저환율, 상승/하락 등)이 오늘 현재 실제 수치와 정확히 일치하는지 전수 대조하여 시점 불일치 및 왜곡/모순 적발' 
   },
   { id: 'viral', name: '바이럴/공유 평가자', role: '단톡방/커뮤니티 공유를 유도하는 킬러 인사이트 및 핵심 문장 검증' },
 ];
 
 /**
- * 12인 전문가 에이전트 종합 리뷰 실행
+ * 13인 전문가 에이전트 종합 리뷰 실행
  */
 export async function evaluateWith12Agents(
   apiKey: string,
@@ -45,10 +50,10 @@ export async function evaluateWith12Agents(
     (a, i) => `${i + 1}. [${a.name}] (${a.role})`
   ).join('\n');
 
-  const prompt = `당신은 대한민국 최고 권위의 미디어/금융리서치 센터 12인 감수 위원회입니다.
-아래 작성된 블로그 원고(Round ${round} 버전)를 12인의 전문가 관점에서 엄격하게 리뷰하고 점수와 보완 지침을 작성하세요.
+  const prompt = `당신은 대한민국 최고 권위의 미디어/금융리서치 센터 13인 감수 위원회입니다.
+아래 작성된 블로그 원고(Round ${round} 버전)를 13인의 전문가 관점에서 엄격하게 리뷰하고 점수와 보완 지침을 작성하세요.
 
-[12인의 전문가 페르소나]
+[13인의 전문가 페르소나]
 ${agentDescriptions}
 
 [평가 대상 원고]
@@ -58,9 +63,9 @@ ${agentDescriptions}
 본문(HTML): ${post.htmlContent.slice(0, 3500)}...
 
 [평가 및 피드백 원칙]
-1. 특히 **"반응형 웹 & 모바일 UX 아키텍트"**는 스마트폰 화면에서 텍스트가 빽빽한 벽돌글이 아닌지, 콜아웃 박스와 표(Table) 스타일이 현대적인 매거진 UI에 맞는지 엄격히 채점하고 개선 지침을 내리세요.
-2. **"데이터 스토리텔러"**와 **"자산 시뮬레이션 계산관"**은 단순 수치 나열을 넘어 독자 입장의 손익 해석과 구체적 셈법(계산표)이 들어있는지 채점하세요.
-3. 12인 각각의 관점에서 10점 만점 점수, 잘된 점, 반드시 수정해야 할 구체적 보강 지침을 제시하세요.
+1. ★ **"실시간 시장 지표 팩트체커"**는 환율 수치(예: 1300원대인데 '초고환율 위기'라고 오도하거나 4월 과거 수치를 인용했는지 여부) 및 금리/실거래가 수치의 시점 정합성을 가장 엄격하게 교차 검증하고, 모순 발견 시 5점 이하의 감점과 함께 즉각 수정 지침을 내리세요.
+2. **"반응형 웹 & 모바일 UX 아키텍트"**는 스마트폰 화면에서 텍스트가 빽빽한 벽돌글이 아닌지, 콜아웃 박스와 표(Table) 스타일이 모바일 최적화되었는지 채점하세요.
+3. **"데이터 스토리텔러"**와 **"자산 시뮬레이션 계산관"**은 단순 수치 나열을 넘어 독자 입장의 손익 해석과 구체적 셈법(계산표)이 들어있는지 채점하세요.
 
 반드시 다음 JSON 배열 포맷으로만 응답하세요:
 [
@@ -70,7 +75,7 @@ ${agentDescriptions}
     "score": 8,
     "strengths": "잘된 부분",
     "improvements": "구체적인 보강 및 수정 지시사항"
-  }, ... (총 12개)
+  }, ... (총 13개)
 ]`;
 
   try {
@@ -83,14 +88,14 @@ ${agentDescriptions}
     const averageScore = feedbacks.length > 0 ? Number((totalScore / feedbacks.length).toFixed(1)) : 8.0;
     return { feedbacks, averageScore };
   } catch (e) {
-    console.warn(`[Reviewer] 12인 리뷰 파싱 오류, 기본 피드백 적용:`, e);
+    console.warn(`[Reviewer] 13인 리뷰 파싱 오류, 기본 피드백 적용:`, e);
     return {
       feedbacks: REVIEWER_AGENTS.map((a) => ({
         agentName: a.name,
         role: a.role,
         score: 8,
         strengths: '기본 구조 및 전문성 확보',
-        improvements: '모바일 반응형 레이아웃 및 구체적 계산표 보강 필요',
+        improvements: '실시간 지표 팩트체크 및 모바일 레이아웃 보강 필요',
       })),
       averageScore: 8.0,
     };
@@ -98,7 +103,7 @@ ${agentDescriptions}
 }
 
 /**
- * 12인의 피드백을 총망라하여 메인 에디터 AI가 원고를 전면 리라이팅/업그레이드
+ * 13인의 피드백을 총망라하여 메인 에디터 AI가 원고를 전면 리라이팅/업그레이드
  */
 export async function rewritePostWithFeedback(
   apiKey: string,
@@ -116,19 +121,20 @@ export async function rewritePostWithFeedback(
     )
     .join('\n\n');
 
-  const systemInstruction = `당신은 세계 최고 수준의 수석 에디터이자 웹 & 모바일 반응형 UI/UX 콘텐츠 디렉터입니다.
-12인의 전문 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 완벽히 흡수하여, 기존 원고를 최상급 프리미엄 반응형 칼럼으로 전면 리라이팅(Refinement)하세요.
+  const systemInstruction = `당신은 세계 최고 수준의 수석 에디터이자 실시간 팩트체크 및 모바일 UI/UX 콘텐츠 디렉터입니다.
+13인의 전문 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 완벽히 흡수하여, 기존 원고를 최상급 프리미엄 팩트체크 반응형 칼럼으로 전면 리라이팅(Refinement)하세요.
 
 [리라이팅 필수 반영 항목]
-1. **📱 모바일 & 웹 완벽 반응형 UI/UX 디자인**:
+1. **🔍 완벽한 실시간 지표 팩트 정합성**:
+   - 제공된 공공데이터(한국은행 최신 환율/금리, 국토부 실거래가)의 실제 수치와 정확히 일치하도록 서술하고, 수치와 모순되는 잘못된 표현(예: 1300원대 환율을 초고환율로 오도 등)을 완전히 바로잡으세요.
+2. **📱 모바일 & 웹 완벽 반응형 UI/UX 디자인**:
    - 모바일에서 한눈에 읽히도록 문단을 2~4문장 단위로 시원하게 분리하세요.
    - 핵심 단어와 숫자에 <strong> 태그를 적재적소에 적용하세요.
    - 도입부: 부드러운 파스텔 블루톤의 3줄 핵심 요약 콜아웃 박스
-   - 섹션 간 전환 시 부드러운 여백과 구분감을 부여하세요.
-2. **📊 데이터 스토리텔링 & 구체적 계산 시뮬레이션**:
+3. **📊 데이터 스토리텔링 & 구체적 계산 시뮬레이션**:
    - 공공데이터/실거래가 수치가 독자의 통장에 주는 실질적 의미와 손익을 해석하세요.
    - 대출 이자 변동, 절세 금액, 배당 수익률 등 구체적인 시뮬레이션 계산표(Table)를 포함하세요.
-3. **입체적 구조**:
+4. **입체적 구조**:
    - 도입부: 문제 제기 + 3줄 핵심 요약 박스
    - 📌 [정부/공공기관 공식 팩트체크 박스]
    - <h2> 1. 현상과 배경: 왜 지금 이 수치가 터져 나왔는가?
@@ -141,7 +147,7 @@ export async function rewritePostWithFeedback(
 [출력 형식]
 반드시 다음 JSON 포맷으로만 응답하세요 (마크다운 백틱 없이 순수 JSON):
 {
-  "title": "12인 피드백을 반영해 더욱 매력적으로 개선된 SEO 제목",
+  "title": "13인 피드백을 반영해 더욱 매력적으로 개선된 SEO 제목",
   "summary": "3줄 핵심 요약",
   "metaDescription": "검색 최적화 메타 디스크립션",
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5", "태그6"],
@@ -150,7 +156,7 @@ export async function rewritePostWithFeedback(
 
   const prompt = `[현재 원고 제목]: ${currentPost.title}
 
-[12인의 전문가 상세 리뷰 및 보강 지침 (Round ${round})]:
+[13인의 전문가 상세 리뷰 및 보강 지침 (Round ${round})]:
 ${feedbackSummary}
 
 [공공데이터 정보]:
@@ -159,7 +165,7 @@ ${publicData ? `${publicData.sourceName} - ${publicData.dataType} (${publicData.
 [기존 본문]:
 ${currentPost.htmlContent}
 
-위 12인의 지적 사항과 모바일 UI/UX 감수 기준을 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
+위 13인의 지적 사항과 실시간 지표 팩트체크를 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
 
   const response = await generateContentWithFallback(ai, {
     contents: prompt,
@@ -195,31 +201,31 @@ export async function executeTwoRoundReviewLoop(
   publicData: PublicFactData | null
 ): Promise<{ finalPost: GeneratedPost; reviewSummary: string }> {
   console.log('\n================================================================');
-  console.log('🏛️ [스킬 가동] 12인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 시작');
+  console.log('🏛️ [스킬 가동] 13인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 시작');
   console.log('================================================================');
 
   // --- Round 1 ---
-  console.log('\n🔍 [1회차 감수] 12인의 전문가(UI/UX 아키텍트 포함)가 초안을 정밀 평가 중...');
+  console.log('\n🔍 [1회차 감수] 13인의 전문가(실시간 팩트체커 & UI/UX 아키텍트 포함)가 정밀 평가 중...');
   const round1Eval = await evaluateWith12Agents(apiKey, initialPost, publicData, 1);
-  console.log(`📊 1회차 12인 평균 평가 점수: ${round1Eval.averageScore} / 10점`);
+  console.log(`📊 1회차 13인 평균 평가 점수: ${round1Eval.averageScore} / 10점`);
   round1Eval.feedbacks.slice(0, 4).forEach((f) => {
     console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
   });
 
-  console.log('\n✍️ [1회차 리라이팅] 12인 피드백(반응형 모바일 UI/UX 포함)을 반영하여 1차 보강 중...');
+  console.log('\n✍️ [1회차 리라이팅] 13인 피드백(실시간 팩트체크 + 반응형 UI/UX)을 반영하여 1차 보강 중...');
   const round1Post = await rewritePostWithFeedback(apiKey, initialPost, round1Eval.feedbacks, publicData, 1);
   console.log(`✅ 1차 보강 완료: "${round1Post.title}"`);
 
   // --- Round 2 ---
-  console.log('\n🔍 [2회차 재검증] 보강된 원고에 대해 12인의 전문가가 2차 재검증 수행 중...');
+  console.log('\n🔍 [2회차 재검증] 보강된 원고에 대해 13인의 전문가가 2차 재검증 수행 중...');
   const round2Eval = await evaluateWith12Agents(apiKey, round1Post, publicData, 2);
-  console.log(`📊 2회차 12인 최종 평균 평가 점수: ${round2Eval.averageScore} / 10점 (상승폭: +${(round2Eval.averageScore - round1Eval.averageScore).toFixed(1)}점)`);
+  console.log(`📊 2회차 13인 최종 평균 평가 점수: ${round2Eval.averageScore} / 10점 (상승폭: +${(round2Eval.averageScore - round1Eval.averageScore).toFixed(1)}점)`);
 
   console.log('\n✨ [최종 리라이팅] 2차 미세 피드백까지 완벽 반영한 최종 원고 완성 중...');
   const finalPost = await rewritePostWithFeedback(apiKey, round1Post, round2Eval.feedbacks, publicData, 2);
   console.log(`🎉 2회차 최종 완성본 도출 성공!`);
   console.log(`   - 최종 제목: ${finalPost.title}`);
 
-  const summary = `12인 전문가 2회 교차 감수 완료 (1차 평점: ${round1Eval.averageScore}점 -> 2차 최종 평점: ${round2Eval.averageScore}점)`;
+  const summary = `13인 전문가 2회 교차 감수 완료 (1차 평점: ${round1Eval.averageScore}점 -> 2차 최종 평점: ${round2Eval.averageScore}점)`;
   return { finalPost, reviewSummary: summary };
 }

@@ -8,26 +8,25 @@ export interface PublicFactData {
 }
 
 /**
- * 1. 한국은행 ECOS (기준금리, 환율 등)
+ * 1. 한국은행 ECOS (기준금리, 환율 등 최신 공인 데이터 정확 추출)
  */
 export async function fetchEcosSummary(apiKey: string): Promise<PublicFactData | null> {
   if (!apiKey) return null;
   try {
     const today = new Date();
     const endStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const past = new Date(today.getTime() - 120 * 24 * 60 * 60 * 1000);
+    const past = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
     const startStr = past.toISOString().slice(0, 10).replace(/-/g, '');
 
-    // 722Y001: 한국은행 기준금리 및 여수신금리
-    const baseRateUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/5/722Y001/M/${startStr.slice(0, 6)}/${endStr.slice(0, 6)}/0101000`;
+    // 722Y001: 한국은행 기준금리 (최신 100건 조회 후 가장 마지막 row)
+    const baseRateUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/100/722Y001/M/${startStr.slice(0, 6)}/${endStr.slice(0, 6)}/0101000`;
     const rateRes = await fetch(baseRateUrl);
     const rateData = await rateRes.json();
-
     const rateItems = rateData.StatisticSearch?.row || [];
     const latestRate = rateItems[rateItems.length - 1];
 
-    // 731Y001: 원/달러 환율 (일별)
-    const fxUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/5/731Y001/D/${startStr}/${endStr}/0000001`;
+    // 731Y001: 원/달러 환율 (최신 거래일 기준 정확 추출)
+    const fxUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/100/731Y001/D/${startStr}/${endStr}/0000001`;
     const fxRes = await fetch(fxUrl);
     const fxData = await fxRes.json();
     const fxItems = fxData.StatisticSearch?.row || [];
@@ -43,17 +42,20 @@ export async function fetchEcosSummary(apiKey: string): Promise<PublicFactData |
     }
     if (latestFx) {
       resultItems.push({
-        label: '원/달러 환율 (종가)',
+        label: '원/달러 환율 (매매기준율)',
         value: `${Number(latestFx.DATA_VALUE).toLocaleString()}원`,
-        extra: `기준일자: ${latestFx.TIME}`,
+        extra: `최신 거래일: ${latestFx.TIME}`,
       });
     }
+
+    const rateVal = latestRate?.DATA_VALUE || '2.75';
+    const fxVal = latestFx?.DATA_VALUE || '1390';
 
     return {
       sourceName: '한국은행 경제통계시스템 (ECOS)',
       dataType: '거시경제 및 통화 금융 공인 지표',
       items: resultItems,
-      summaryText: `한국은행 공인 기준금리: ${latestRate?.DATA_VALUE || '3.50'}%, 원/달러 환율: ${latestFx?.DATA_VALUE || '1350'}원`,
+      summaryText: `한국은행 공인 기준금리: ${rateVal}%, 최신 원/달러 환율: ${fxVal}원 (기준일자: ${latestFx?.TIME || '최근'})`,
     };
   } catch (error) {
     console.warn('[PublicData] ECOS 조회 오류:', error);
@@ -73,7 +75,7 @@ export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFact
     const curMonth = String(now.getMonth() + 1).padStart(2, '0');
     const ymd = `${curYear}${curMonth}`;
 
-    // 강남구: 11680, 마포구: 11440
+    // 강남구: 11680
     const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encKey}&LAWD_CD=11680&DEAL_YMD=${ymd}&_type=json`;
     const res = await fetch(url);
     const data = await res.json();
@@ -83,7 +85,6 @@ export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFact
       items = items ? [items] : [];
     }
 
-    // 만약 당월 데이터가 없으면 전월 데이터 재시도
     if (items.length === 0) {
       const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevYmd = `${prevDate.getFullYear()}${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
@@ -159,7 +160,6 @@ export async function fetchPublicDataForCategory(
   } else if (category === 'real_estate' && keys.dataGoKrKey) {
     return await fetchRealEstateSummary(keys.dataGoKrKey);
   } else if (category === 'finance') {
-    // 재테크/금융은 ECOS와 DART 중 우선 DART나 ECOS 조회
     const dart = keys.dartKey ? await fetchDartSummary(keys.dartKey) : null;
     return dart || (keys.ecosKey ? await fetchEcosSummary(keys.ecosKey) : null);
   }
