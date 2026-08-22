@@ -64,7 +64,38 @@ export async function fetchEcosSummary(apiKey: string): Promise<PublicFactData |
 }
 
 /**
- * 2. 국토교통부 실거래가 (서울 강남/마포 등 주요 지역 최근 실거래)
+ * 2. 한국부동산원 청약홈 분양정보 API (신규 분양 및 무순위 줍줍 청약)
+ */
+export async function fetchApplyhomeSummary(apiKey: string): Promise<PublicFactData | null> {
+  if (!apiKey) return null;
+  try {
+    const url = `https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail?page=1&perPage=5&serviceKey=${encodeURIComponent(apiKey)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+
+    const items = data.data || [];
+    if (items.length === 0) return null;
+
+    const list = items.slice(0, 3).map((it: any) => ({
+      label: `${it.HOUSE_NM} (${it.HOUSETY || '아파트'})`,
+      value: `접수: ${it.RCEPT_BGNDE || ''} ~ ${it.RCEPT_ENDDE || ''}`,
+      extra: `지역: ${it.SUBSCRPT_AREA_CODE_NM || it.HSSPLY_ADRES?.slice(0, 15) || '수도권'} | 당첨발표: ${it.PRZWNER_PRESN_DATE || '-'}`,
+    }));
+
+    return {
+      sourceName: '한국부동산원 청약홈 (Applyhome)',
+      dataType: '최신 아파트 분양 및 청약 접수 일정',
+      items: list,
+      summaryText: list.map((t: any) => `${t.label} : ${t.value}`).join(' | '),
+    };
+  } catch (error) {
+    console.warn('[PublicData] 청약홈 조회 오류:', error);
+    return null;
+  }
+}
+
+/**
+ * 3. 국토교통부 실거래가 (서울 강남/마포 등 주요 지역 최근 실거래)
  */
 export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFactData | null> {
   if (!apiKey) return null;
@@ -77,7 +108,7 @@ export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFact
 
     // 강남구: 11680
     const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encKey}&LAWD_CD=11680&DEAL_YMD=${ymd}&_type=json`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     const data = await res.json();
 
     let items = data.response?.body?.items?.item || [];
@@ -89,7 +120,7 @@ export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFact
       const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevYmd = `${prevDate.getFullYear()}${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
       const prevUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encKey}&LAWD_CD=11680&DEAL_YMD=${prevYmd}&_type=json`;
-      const prevRes = await fetch(prevUrl);
+      const prevRes = await fetch(prevUrl, { signal: AbortSignal.timeout(5000) });
       const prevData = await prevRes.json();
       items = prevData.response?.body?.items?.item || [];
       if (!Array.isArray(items)) items = items ? [items] : [];
@@ -114,7 +145,7 @@ export async function fetchRealEstateSummary(apiKey: string): Promise<PublicFact
 }
 
 /**
- * 3. 금융감독원 DART (최신 주요 공시)
+ * 4. 금융감독원 DART (최신 주요 공시)
  */
 export async function fetchDartSummary(apiKey: string): Promise<PublicFactData | null> {
   if (!apiKey) return null;
@@ -125,7 +156,7 @@ export async function fetchDartSummary(apiKey: string): Promise<PublicFactData |
     const startStr = past.toISOString().slice(0, 10).replace(/-/g, '');
 
     const url = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${apiKey}&bgn_de=${startStr}&end_de=${endStr}&page_no=1&page_count=5`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     const data = await res.json();
 
     if (data.status !== '000' || !data.list) return null;
@@ -149,16 +180,19 @@ export async function fetchDartSummary(apiKey: string): Promise<PublicFactData |
 }
 
 /**
- * 카테고리별 최적 공공데이터 가져오기
+ * 카테고리별 최적 공공데이터 가져오기 (다중 소스 지원)
  */
 export async function fetchPublicDataForCategory(
   category: BlogCategory,
-  keys: { ecosKey?: string; dataGoKrKey?: string; dartKey?: string }
+  keys: { ecosKey?: string; dataGoKrKey?: string; dartKey?: string; kosisKey?: string }
 ): Promise<PublicFactData | null> {
-  if (category === 'economy' && keys.ecosKey) {
-    return await fetchEcosSummary(keys.ecosKey);
-  } else if (category === 'real_estate' && keys.dataGoKrKey) {
+  if (category === 'real_estate' && keys.dataGoKrKey) {
+    // 부동산: 청약홈 분양정보 우선 조회 -> 실거래가 폴백
+    const applyhome = await fetchApplyhomeSummary(keys.dataGoKrKey);
+    if (applyhome) return applyhome;
     return await fetchRealEstateSummary(keys.dataGoKrKey);
+  } else if (category === 'economy' && keys.ecosKey) {
+    return await fetchEcosSummary(keys.ecosKey);
   } else if (category === 'finance') {
     const dart = keys.dartKey ? await fetchDartSummary(keys.dartKey) : null;
     return dart || (keys.ecosKey ? await fetchEcosSummary(keys.ecosKey) : null);
