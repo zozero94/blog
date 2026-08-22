@@ -120,6 +120,7 @@ ${publicDataHtmlGuide}
       systemInstruction,
       responseMimeType: 'application/json',
       temperature: 0.7,
+      maxOutputTokens: 8192,
     },
   });
 
