@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { GeneratedPost } from './types.js';
 import { PublicFactData } from './public-data.js';
-import { generateContentWithFallback } from './model-resolver.js';
+import { generateContentWithFallback, safeJsonParse } from './model-resolver.js';
 
 export interface AgentFeedback {
   agentName: string;
@@ -83,12 +83,19 @@ ${agentDescriptions}
       contents: prompt,
       config: { responseMimeType: 'application/json', temperature: 0.3 },
     });
-    const feedbacks = JSON.parse(response.text || '[]') as AgentFeedback[];
-    const totalScore = feedbacks.reduce((acc, f) => acc + (f.score || 7), 0);
-    const averageScore = feedbacks.length > 0 ? Number((totalScore / feedbacks.length).toFixed(1)) : 8.0;
-    return { feedbacks, averageScore };
+    const feedbacks = safeJsonParse<AgentFeedback[]>(response.text || '[]', []);
+    const validFeedbacks = feedbacks.length > 0 ? feedbacks : REVIEWER_AGENTS.map((a) => ({
+      agentName: a.name,
+      role: a.role,
+      score: 8,
+      strengths: '기본 구조 및 전문성 확보',
+      improvements: '실시간 지표 팩트체크 및 모바일 레이아웃 보강 필요',
+    }));
+    const totalScore = validFeedbacks.reduce((acc, f) => acc + (f.score || 7), 0);
+    const averageScore = Number((totalScore / validFeedbacks.length).toFixed(1));
+    return { feedbacks: validFeedbacks, averageScore };
   } catch (e) {
-    console.warn(`[Reviewer] 13인 리뷰 파싱 오류, 기본 피드백 적용:`, e);
+    console.warn(`[Reviewer] 13인 리뷰 오류, 기본 피드백 적용:`, e);
     return {
       feedbacks: REVIEWER_AGENTS.map((a) => ({
         agentName: a.name,
@@ -126,7 +133,7 @@ export async function rewritePostWithFeedback(
 
 [리라이팅 필수 반영 항목]
 1. **🔍 완벽한 실시간 지표 팩트 정합성**:
-   - 제공된 공공데이터(한국은행 최신 환율/금리, 국토부 실거래가)의 실제 수치와 정확히 일치하도록 서술하고, 수치와 모순되는 잘못된 표현(예: 1300원대 환율을 초고환율로 오도 등)을 완전히 바로잡으세요.
+   - 제공된 공공데이터(한국은행 최신 환율/금리, 국토부 실거래가)의 실제 수치와 정확히 일치하도록 서술하고, 수치와 모순되는 잘못된 표현을 완전히 바로잡으세요.
 2. **📱 모바일 & 웹 완벽 반응형 UI/UX 디자인**:
    - 모바일에서 한눈에 읽히도록 문단을 2~4문장 단위로 시원하게 분리하세요.
    - 핵심 단어와 숫자에 <strong> 태그를 적재적소에 적용하세요.
@@ -167,28 +174,31 @@ ${currentPost.htmlContent}
 
 위 13인의 지적 사항과 실시간 지표 팩트체크를 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
 
-  const response = await generateContentWithFallback(ai, {
-    contents: prompt,
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      temperature: 0.7,
-      maxOutputTokens: 8192,
-    },
-  });
-
   try {
-    const parsed = JSON.parse(response.text || '{}');
-    return {
-      title: parsed.title || currentPost.title,
-      summary: parsed.summary || currentPost.summary,
-      htmlContent: parsed.htmlContent || currentPost.htmlContent,
-      tags: Array.isArray(parsed.tags) ? parsed.tags : currentPost.tags,
-      categories: currentPost.categories,
-      metaDescription: parsed.metaDescription || currentPost.metaDescription,
-    };
+    const response = await generateContentWithFallback(ai, {
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      },
+    });
+
+    const parsed = safeJsonParse<any>(response.text || '{}', null);
+    if (parsed && parsed.title) {
+      return {
+        title: parsed.title,
+        summary: parsed.summary || currentPost.summary,
+        htmlContent: parsed.htmlContent || currentPost.htmlContent,
+        tags: Array.isArray(parsed.tags) ? parsed.tags : currentPost.tags,
+        categories: currentPost.categories,
+        metaDescription: parsed.metaDescription || currentPost.metaDescription,
+      };
+    }
+    return currentPost;
   } catch (err) {
-    console.warn(`[Reviewer] 리라이팅 파싱 오류, 기존 포스트 유지:`, err);
+    console.warn(`[Reviewer] 리라이팅 오류, 기존 포스트 유지:`, err);
     return currentPost;
   }
 }
