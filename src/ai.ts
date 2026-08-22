@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { CategoryConfig, GeneratedPost, NewsItem } from './types.js';
 import { PublicFactData } from './public-data.js';
-import { generateContentWithFallback, safeJsonParse } from './model-resolver.js';
+import { generateContentWithFallback, extractCleanPostFromRawText } from './model-resolver.js';
 
 export async function generateSingleTopicPost(
   apiKey: string,
@@ -125,25 +125,10 @@ ${publicDataHtmlGuide}
   });
 
   const responseText = response.text || '';
-  const parsed = safeJsonParse<any>(responseText, null);
-  if (parsed && parsed.title) {
-    return {
-      title: parsed.title,
-      summary: parsed.summary || '최신 시장 동향 및 공공 데이터 기반 교차 분석',
-      htmlContent: parsed.htmlContent || `<p>${responseText}</p>`,
-      tags: Array.isArray(parsed.tags) ? parsed.tags : config.tags,
-      categories: [config.wpCategory],
-      metaDescription: parsed.metaDescription || parsed.summary || '',
-    };
-  }
-
-  console.warn('[AI] JSON 파싱 폴백 처리 실행');
-  return {
-    title: `[심층분석] ${mainTopicTitle}`,
-    summary: '최신 교차 검증 데이터 기반 심층 분석',
-    htmlContent: `<div>${responseText.replace(/\n/g, '<br/>')}</div>`,
-    tags: config.tags,
-    categories: [config.wpCategory],
-    metaDescription: mainTopicTitle,
-  };
+  return extractCleanPostFromRawText(
+    responseText,
+    `[심층분석] ${mainTopicTitle}`,
+    config.wpCategory,
+    config.tags
+  );
 }

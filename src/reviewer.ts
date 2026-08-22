@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { GeneratedPost } from './types.js';
 import { PublicFactData } from './public-data.js';
-import { generateContentWithFallback, safeJsonParse } from './model-resolver.js';
+import { generateContentWithFallback, safeJsonParse, extractCleanPostFromRawText } from './model-resolver.js';
 
 export interface AgentFeedback {
   agentName: string;
@@ -185,18 +185,13 @@ ${currentPost.htmlContent}
       },
     });
 
-    const parsed = safeJsonParse<any>(response.text || '{}', null);
-    if (parsed && parsed.title) {
-      return {
-        title: parsed.title,
-        summary: parsed.summary || currentPost.summary,
-        htmlContent: parsed.htmlContent || currentPost.htmlContent,
-        tags: Array.isArray(parsed.tags) ? parsed.tags : currentPost.tags,
-        categories: currentPost.categories,
-        metaDescription: parsed.metaDescription || currentPost.metaDescription,
-      };
-    }
-    return currentPost;
+    const responseText = response.text || '';
+    return extractCleanPostFromRawText(
+      responseText,
+      currentPost.title,
+      currentPost.categories[0] || '경제',
+      currentPost.tags
+    );
   } catch (err) {
     console.warn(`[Reviewer] 리라이팅 오류, 기존 포스트 유지:`, err);
     return currentPost;
