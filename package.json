@@ -5,7 +5,7 @@
   "main": "dist/pipeline.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit",
     "pipeline": "tsx src/pipeline.ts",
     "test-pipeline": "tsx src/pipeline.ts --category=economy"
   },
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@vercel/node": "^5.10.2",
+    "libsodium-wrappers": "^0.8.4",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   }
