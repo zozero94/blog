@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^2.18.0",
     "dotenv": "^17.4.2",
+    "playwright-chromium": "^1.62.1",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
