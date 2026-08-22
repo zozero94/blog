@@ -63,21 +63,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await telegram.answerCallbackQuery(callbackId, '듀얼 블로그 동시 발행 처리 중...');
       const results: string[] = [];
 
-      // 1. 워드프레스 발행
+      // 1. 내 도메인 (zozero94.com) 반영
       if (wp && wpIdStr && wpIdStr !== 'none') {
         try {
-          const publishedWp = await wp.publishPost(wpIdStr);
-          results.push(`🔗 <b>워드프레스:</b> <a href="${publishedWp.URL}">${publishedWp.URL}</a>`);
+          await wp.publishPost(wpIdStr);
+          results.push(`🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>`);
         } catch (e) {
           console.error('WP Publish Error:', e);
         }
       }
 
-      // 2. 구글 블로거 발행
+      // 2. 구글 블로거 (Blogger) 발행
       if (blogger && bloggerIdStr && bloggerIdStr !== 'none') {
         try {
           const publishedBlogger = await blogger.publishPost(bloggerIdStr);
-          results.push(`🌐 <b>구글 블로그 (애드센스):</b> <a href="${publishedBlogger.url}">${publishedBlogger.url}</a>`);
+          results.push(`📱 <b>구글 블로그:</b> <a href="${publishedBlogger.url}">${publishedBlogger.url}</a>`);
         } catch (e) {
           console.error('Blogger Publish Error:', e);
         }

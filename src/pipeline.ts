@@ -136,7 +136,8 @@ async function run() {
   const bloggerId = bloggerPost?.id || 'none';
   const callbackId = `${wpId}_${bloggerId}`;
 
-  const linkText = `🔗 <b>워드프레스:</b> ${wpPost?.URL ? `<a href="${wpPost.URL}">${wpPost.URL}</a>` : '미등록'}\n🌐 <b>구글 블로그:</b> ${bloggerPost?.url ? `<a href="${bloggerPost.url}">${bloggerPost.url}</a>` : '미등록'}`;
+  const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
+📱 <b>구글 블로그:</b> ${bloggerPost?.url ? `<a href="${bloggerPost.url}">${bloggerPost.url}</a>` : 'https://zozero94.blogspot.com'}`;
 
   const messageText = `📢 <b>[AI 자동화] ${topicResult.config.name} 듀얼 포스팅 승인 요청</b>
 
