@@ -172,10 +172,10 @@
     }
 
     async function handleShare() {
+      const shareUrl = window.location.href;
       const shareData = {
         title: document.title,
-        text: '인사이트 머니 & 리얼티 분석 칼럼을 확인해보세요!',
-        url: window.location.href,
+        url: shareUrl,
       };
 
       // 모바일 네이티브 공유 시트 (카톡, 메시지 등)
