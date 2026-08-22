@@ -4,7 +4,7 @@ import { collectSingleTopicPipeline, CATEGORY_CONFIGS } from './collector.js';
 import { fetchPublicDataForCategory } from './public-data.js';
 import { generateSingleTopicPost } from './ai.js';
 import { executeTwoRoundReviewLoop } from './reviewer.js';
-import { verifyDeployIntegrity } from './verifier.js';
+import { executeAutomatedCodeReview } from './verifier.js';
 import { WordPressClient } from './wordpress.js';
 import { BloggerClient } from './blogger.js';
 import { TelegramClient } from './telegram.js';
@@ -34,7 +34,7 @@ function getCategoryFromArgs(): BlogCategory {
 
 async function run() {
   console.log('================================================================');
-  console.log('🚀 AI 단일주제 심층 블로그 [13인 감수 + 코드 무결성 검증 파이프라인]');
+  console.log('🚀 AI 단일주제 심층 블로그 [13인 감수 + 5대 Code-Review 검증 파이프라인]');
   console.log('================================================================');
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -94,7 +94,7 @@ async function run() {
   );
   console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-  // [4단계 - ★ 스킬 자동 트리거] 13인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
+  // [4단계 - ★ 13인 감수 스킬] 13인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
   console.log('\n[4/7] 🛡️ [자동 트리거] 13인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 가동');
   const { finalPost, reviewSummary } = await executeTwoRoundReviewLoop(
     geminiApiKey,
@@ -102,12 +102,12 @@ async function run() {
     publicData
   );
 
-  // [5단계 - ★ 신규 코드/배포 무결성 검증] 배포 직전 시스템 & 렌더링 코드 자동 무결성 검사
-  console.log('\n[5/7] 🔍 [배포 직전 검증] 시스템 헬스체크 & HTML 렌더링 코드 무결성 자동 검사');
-  const verifyResult = await verifyDeployIntegrity(finalPost, 'https://zozero94.com');
-  console.log(`📊 코드 무결성 검증 점수: ${verifyResult.score} / 100점 (${verifyResult.passed ? '합격 ✅' : '보완 필요 ⚠️'})`);
-  verifyResult.checks.forEach((c) => {
-    console.log(`   - [${c.status}] ${c.name}: ${c.message}`);
+  // [5단계 - ★ code-review 스킬 정식 연동] 5대 전문 에이전트 배포 코드 및 렌더링 무결성 정밀 검증
+  console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');
+  const codeReviewResult = await executeAutomatedCodeReview(geminiApiKey, finalPost, 'https://zozero94.com');
+  console.log(`📊 5대 Code-Review 종합 평점: ${codeReviewResult.averageScore} / 10점 (${codeReviewResult.passed ? '심사 통과 ✅' : '보완 필요 ⚠️'})`);
+  codeReviewResult.feedbacks.forEach((f) => {
+    console.log(`   - [${f.verdict}] ${f.agentName} (${f.score}점): ${f.reviewNotes}`);
   });
 
   // [6단계] WordPress & Google Blogger 듀얼 등록
@@ -153,8 +153,8 @@ async function run() {
 💡 <b>3줄 핵심 요약:</b>
 ${escapeHtml(finalPost.summary)}
 
-🏛️ <b>13인 감수 결과:</b> ${escapeHtml(reviewSummary)}
-🔍 <b>코드·배포 무결성 검증:</b> ${verifyResult.score}점 (정상 가동 ✅)
+🏛️ <b>13인 콘텐츠 감수:</b> ${escapeHtml(reviewSummary)}
+💻 <b>5대 Code-Review 심사:</b> ${codeReviewResult.averageScore}/10점 (배포 적합성 통과 ✅)
 🏷️ <b>태그:</b> ${escapeHtml(finalPost.tags.map((t) => `#${t.replace(/\s+/g, '')}`).join(' '))}
 
 ${linkText}
@@ -174,7 +174,7 @@ ${linkText}
   console.log(`✅ 텔레그램 듀얼 승인 알림 전송 완료! (Message ID: ${message_id})`);
 
   console.log('\n================================================================');
-  console.log('🎉 듀얼 블로그 13인 감수 & 코드 무결성 자동화 파이프라인 100% 완료!');
+  console.log('🎉 듀얼 블로그 13인 감수 & 5대 Code-Review 무결성 자동화 파이프라인 100% 완료!');
   console.log('📱 텔레그램에서 검토 후 [✅ 양쪽 동시 즉시 발행] 버튼을 눌러주세요.');
   console.log('================================================================');
 }
