@@ -5,6 +5,9 @@ export interface BloggerPostResponse {
   url: string;
   title: string;
   status: string;
+  content?: string;
+  published?: string;
+  labels?: string[];
 }
 
 export class BloggerClient {
@@ -23,7 +26,7 @@ export class BloggerClient {
   /**
    * Refresh Token으로 새로운 Access Token 발급
    */
-  private async getAccessToken(): Promise<string> {
+  async getAccessToken(): Promise<string> {
     const tokenUrl = 'https://oauth2.googleapis.com/token';
     const body = new URLSearchParams({
       client_id: this.clientId,
@@ -58,7 +61,7 @@ export class BloggerClient {
       kind: 'blogger#post',
       title: post.title,
       content: post.htmlContent,
-      labels: post.tags,
+      labels: [...post.tags, ...post.categories],
     };
 
     const res = await fetch(url, {
@@ -101,7 +104,7 @@ export class BloggerClient {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Blogger 발행 실패 (${res.status}): ${errText}`);
+      throw new Error(`Blogger 글 발행 실패 (${res.status}): ${errText}`);
     }
 
     const data = await res.json();
@@ -114,22 +117,74 @@ export class BloggerClient {
   }
 
   /**
-   * 구글 블로그(Blogger) 글 삭제
+   * 구글 블로그(Blogger) 글 삭제 (Delete)
    */
-  async deletePost(postId: string): Promise<void> {
+  async deletePost(postId: string): Promise<boolean> {
     const accessToken = await this.getAccessToken();
     const url = `https://www.googleapis.com/blogger/v3/blogs/${this.blogId}/posts/${postId}`;
 
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok && res.status !== 404) {
+      const errText = await res.text();
+      throw new Error(`Blogger 글 삭제 실패 (${res.status}): ${errText}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * 공개된 포스트 목록 조회
+   */
+  async getPosts(maxResults: number = 20): Promise<BloggerPostResponse[]> {
+    const accessToken = await this.getAccessToken();
+    const url = `https://www.googleapis.com/blogger/v3/blogs/${this.blogId}/posts?maxResults=${maxResults}&fetchBodies=true&status=live`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Blogger 삭제 실패 (${res.status}): ${errText}`);
+      return [];
     }
+
+    const data = await res.json();
+    return (data.items || []).map((item: any) => ({
+      id: item.id,
+      url: item.url,
+      title: item.title,
+      status: item.status,
+      content: item.content,
+      published: item.published,
+      labels: item.labels || [],
+    }));
+  }
+
+  /**
+   * 단일 포스트 상세 조회
+   */
+  async getPostById(postId: string): Promise<BloggerPostResponse | null> {
+    const accessToken = await this.getAccessToken();
+    const url = `https://www.googleapis.com/blogger/v3/blogs/${this.blogId}/posts/${postId}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) return null;
+
+    const item = await res.json();
+    return {
+      id: item.id,
+      url: item.url,
+      title: item.title,
+      status: item.status,
+      content: item.content,
+      published: item.published,
+      labels: item.labels || [],
+    };
   }
 }

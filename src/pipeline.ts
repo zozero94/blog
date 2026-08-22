@@ -5,7 +5,6 @@ import { fetchPublicDataForCategory } from './public-data.js';
 import { generateSingleTopicPost } from './ai.js';
 import { executeTwoRoundReviewLoop } from './reviewer.js';
 import { executeAutomatedCodeReview } from './verifier.js';
-import { WordPressClient } from './wordpress.js';
 import { BloggerClient } from './blogger.js';
 import { TelegramClient } from './telegram.js';
 
@@ -34,12 +33,10 @@ function getCategoryFromArgs(): BlogCategory {
 
 async function run() {
   console.log('================================================================');
-  console.log('🚀 AI 단일주제 심층 블로그 [13인 감수 + 5대 Code-Review 검증 파이프라인]');
+  console.log('🚀 AI 단일주제 심층 블로그 [13인 감수 + 5대 Code-Review 무인 파이프라인]');
   console.log('================================================================');
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  const wpSiteId = process.env.WP_SITE_ID;
-  const wpAccessToken = process.env.WP_ACCESS_TOKEN;
   const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
   const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -52,7 +49,7 @@ async function run() {
   const bloggerClientSecret = process.env.BLOGGER_CLIENT_SECRET;
   const bloggerRefreshToken = process.env.BLOGGER_REFRESH_TOKEN;
 
-  if (!geminiApiKey || !telegramBotToken || !telegramChatId) {
+  if (!geminiApiKey || !telegramBotToken || !telegramChatId || !bloggerBlogId || !bloggerClientId || !bloggerClientSecret || !bloggerRefreshToken) {
     console.error('❌ 필수 환경변수가 누락되었습니다. (.env 확인 필요)');
     process.exit(1);
   }
@@ -94,7 +91,7 @@ async function run() {
   );
   console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-  // [4단계 - ★ 13인 감수 스킬] 13인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
+  // [4단계] 13인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
   console.log('\n[4/7] 🛡️ [자동 트리거] 13인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 가동');
   const { finalPost, reviewSummary } = await executeTwoRoundReviewLoop(
     geminiApiKey,
@@ -102,7 +99,7 @@ async function run() {
     publicData
   );
 
-  // [5단계 - ★ code-review 스킬 정식 연동] 5대 전문 에이전트 배포 코드 및 렌더링 무결성 정밀 검증
+  // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사
   console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');
   const codeReviewResult = await executeAutomatedCodeReview(geminiApiKey, finalPost, 'https://zozero94.com');
   console.log(`📊 5대 Code-Review 종합 평점: ${codeReviewResult.averageScore} / 10점 (${codeReviewResult.passed ? '심사 통과 ✅' : '보완 필요 ⚠️'})`);
@@ -110,43 +107,20 @@ async function run() {
     console.log(`   - [${f.verdict}] ${f.agentName} (${f.score}점): ${f.reviewNotes}`);
   });
 
-  // [6단계] WordPress & Google Blogger 듀얼 등록
-  console.log('\n[6/7] 📝 WordPress 및 Google Blogger 양쪽으로 임시글(Draft) 동시 등록');
-  let wpPost = null;
-  let bloggerPost = null;
+  // [6단계] Google Blogger 임시글(Draft) 자동 등록
+  console.log('\n[6/7] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록');
+  const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
+  const bloggerPost = await bloggerClient.createDraftPost(finalPost);
+  console.log(`✅ Google Blogger 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
 
-  if (wpSiteId && wpAccessToken) {
-    try {
-      const wpClient = new WordPressClient(wpSiteId, wpAccessToken);
-      wpPost = await wpClient.createDraftPost(finalPost);
-      console.log(`✅ [1/2] WordPress 등록 성공! (ID: ${wpPost.ID}, URL: ${wpPost.URL})`);
-    } catch (e) {
-      console.warn('⚠️ WordPress 등록 실패:', e);
-    }
-  }
-
-  if (bloggerBlogId && bloggerClientId && bloggerClientSecret && bloggerRefreshToken) {
-    try {
-      const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
-      bloggerPost = await bloggerClient.createDraftPost(finalPost);
-      console.log(`✅ [2/2] Google Blogger(애드센스용) 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
-    } catch (e) {
-      console.warn('⚠️ Google Blogger 등록 실패:', e);
-    }
-  }
-
-  // [7단계] 텔레그램 듀얼 승인 알림 발송
-  console.log('\n[7/7] 📱 텔레그램 듀얼 승인 알림 발송');
+  // [7단계] 텔레그램 승인 알림 발송
+  console.log('\n[7/7] 📱 텔레그램 승인 알림 발송');
   const telegramClient = new TelegramClient(telegramBotToken, telegramChatId);
-  
-  const wpId = wpPost?.ID || 'none';
-  const bloggerId = bloggerPost?.id || 'none';
-  const callbackId = `${wpId}_${bloggerId}`;
 
   const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
-📱 <b>구글 블로그:</b> ${bloggerPost?.url ? `<a href="${bloggerPost.url}">${bloggerPost.url}</a>` : 'https://zozero94.blogspot.com'}`;
+📱 <b>구글 블로그:</b> <a href="${bloggerPost.url}">${bloggerPost.url}</a>`;
 
-  const messageText = `📢 <b>[인사이트 리서치] ${topicResult.config.name} 듀얼 포스팅 승인 요청</b>
+  const messageText = `📢 <b>[인사이트 리서치] ${topicResult.config.name} 포스팅 승인 요청</b>
 
 📝 <b>제목:</b> ${escapeHtml(finalPost.title)}
 
@@ -159,23 +133,23 @@ ${escapeHtml(finalPost.summary)}
 
 ${linkText}
 
-아래 버튼을 누르면 <b>워드프레스와 구글 블로그에 동시 반영</b>됩니다:`;
+아래 버튼을 누르면 <b>즉시 공식 발행</b>됩니다:`;
 
   const replyMarkup = {
     inline_keyboard: [
       [
-        { text: '✅ 양쪽 동시 즉시 발행', callback_data: `publish:${callbackId}` },
-        { text: '❌ 동시 삭제', callback_data: `delete:${callbackId}` },
+        { text: '✅ 즉시 정식 발행', callback_data: `publish:${bloggerPost.id}` },
+        { text: '❌ 임시글 삭제', callback_data: `delete:${bloggerPost.id}` },
       ],
     ],
   };
 
   const { message_id } = await telegramClient.sendMessageWithMarkup(messageText, replyMarkup);
-  console.log(`✅ 텔레그램 듀얼 승인 알림 전송 완료! (Message ID: ${message_id})`);
+  console.log(`✅ 텔레그램 승인 알림 전송 완료! (Message ID: ${message_id})`);
 
   console.log('\n================================================================');
-  console.log('🎉 듀얼 블로그 13인 감수 & 5대 Code-Review 무결성 자동화 파이프라인 100% 완료!');
-  console.log('📱 텔레그램에서 검토 후 [✅ 양쪽 동시 즉시 발행] 버튼을 눌러주세요.');
+  console.log('🎉 13인 감수 & 5대 Code-Review 무인 자동화 파이프라인 100% 완료!');
+  console.log('📱 텔레그램에서 검토 후 [✅ 즉시 정식 발행] 버튼을 눌러주세요.');
   console.log('================================================================');
 }
 

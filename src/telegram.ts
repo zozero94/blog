@@ -12,6 +12,31 @@ export class TelegramClient {
   }
 
   /**
+   * 일반 텍스트 메시지 전송
+   */
+  async sendMessage(text: string): Promise<{ message_id: number }> {
+    const url = `${this.baseUrl}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: this.chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API 메시지 전송 실패 (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    return { message_id: data.result.message_id };
+  }
+
+  /**
    * 커스텀 마크업과 함께 메시지 전송
    */
   async sendMessageWithMarkup(
