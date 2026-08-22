@@ -1,7 +1,7 @@
 import Parser from 'rss-parser';
 import { GoogleGenAI } from '@google/genai';
 import { BlogCategory, CategoryConfig, NewsItem } from './types.js';
-import { getOptimalGeminiModel } from './model-resolver.js';
+import { generateContentWithFallback } from './model-resolver.js';
 
 const parser = new Parser({
   headers: {
@@ -111,9 +111,7 @@ ${headlineList}
 }`;
 
   try {
-    const modelName = await getOptimalGeminiModel(apiKey);
-    const response = await ai.models.generateContent({
-      model: modelName,
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
       config: { responseMimeType: 'application/json', temperature: 0.2 },
     });

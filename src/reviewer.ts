@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { GeneratedPost } from './types.js';
 import { PublicFactData } from './public-data.js';
-import { getOptimalGeminiModel } from './model-resolver.js';
+import { generateContentWithFallback } from './model-resolver.js';
 
 export interface AgentFeedback {
   agentName: string;
@@ -69,9 +69,7 @@ ${agentDescriptions}
 ]`;
 
   try {
-    const modelName = await getOptimalGeminiModel(apiKey);
-    const response = await ai.models.generateContent({
-      model: modelName,
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
       config: { responseMimeType: 'application/json', temperature: 0.3 },
     });
@@ -152,9 +150,7 @@ ${currentPost.htmlContent}
 
 위 12인의 지적 사항을 100% 반영하여 한 차원 높은 완성도의 최종 원고로 리라이팅해 주세요.`;
 
-  const modelName = await getOptimalGeminiModel(apiKey);
-  const response = await ai.models.generateContent({
-    model: modelName,
+  const response = await generateContentWithFallback(ai, {
     contents: prompt,
     config: {
       systemInstruction,
