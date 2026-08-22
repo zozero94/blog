@@ -2,10 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const wpSiteId = process.env.WP_SITE_ID || '256898514';
-  const wpToken = process.env.WP_ACCESS_TOKEN;
+  const wpToken = process.env.WP_ACCESS_TOKEN || 'cdp)1mQgj!y)ssz0(ncH7zm08Ulsc@7InVA5814gyQL*k$aHVF$G#)95brx7^Ah5';
 
-  // Vercel Edge CDN 캐싱 헤더 설정 (1분 캐시, 5분 백그라운드 갱신)
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+  // Vercel Edge 캐싱 (10초 캐시, 60초 백그라운드 갱신)
+  res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
     const { id, category } = req.query;
@@ -14,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (id) {
       const url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/${id}`;
       const response = await fetch(url, {
-        headers: wpToken ? { Authorization: `Bearer ${wpToken}` } : {},
+        headers: { Authorization: `Bearer ${wpToken}` },
       });
       if (!response.ok) {
         return res.status(404).json({ error: 'Post not found' });
@@ -23,14 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // 포스트 목록 조회 (본문 제외 경량화 필드 조회)
-    let url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=20&status=publish&fields=ID,title,date,excerpt,categories,tags`;
+    // 포스트 목록 조회
+    let url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=20&status=publish`;
     if (category) {
       url += `&category=${encodeURIComponent(String(category))}`;
     }
 
     const response = await fetch(url, {
-      headers: wpToken ? { Authorization: `Bearer ${wpToken}` } : {},
+      headers: { Authorization: `Bearer ${wpToken}` },
     });
 
     if (!response.ok) {

@@ -29,10 +29,21 @@ export const CODE_REVIEW_AGENTS = [
 ];
 
 /**
- * HTML 미닫힘 태그 자동 보정 및 자가치유 (Auto-healing)
+ * HTML 미닫힘 태그 자동 보정 및 JSON 잔재 완전 박멸 (Auto-healing)
  */
 export function autoRepairHtml(html: string): string {
   let repaired = html;
+
+  // 0. 치명적 결함: 본문에 JSON 키워드({"title", "htmlContent" 등)가 포함되어 있으면 강제 박멸
+  if (repaired.includes('"htmlContent"') || repaired.includes('{"title"') || repaired.startsWith('{')) {
+    repaired = repaired
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .replace(/\{\s*"title"[\s\S]*?"htmlContent"\s*:\s*"?/gi, '')
+      .replace(/"\s*,\s*"(tags|summary|metaDescription|categories)"[\s\S]*$/, '')
+      .replace(/"\s*}\s*$/, '')
+      .trim();
+  }
 
   // 닫히지 않은 table, tbody, tr, td 자동 복구
   if (repaired.includes('<table') && !repaired.includes('</table>')) {
