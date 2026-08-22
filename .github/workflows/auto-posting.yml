@@ -1,0 +1,56 @@
+name: Daily AI Blog Auto-Posting
+
+on:
+  schedule:
+    # 00:00 UTC = 09:00 KST (시사·경제)
+    - cron: '0 0 * * *'
+    # 03:00 UTC = 12:00 KST (부동산)
+    - cron: '0 3 * * *'
+    # 07:00 UTC = 16:00 KST (재테크·금융)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      category:
+        description: '포스팅할 카테고리 선택'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - economy
+          - real_estate
+          - finance
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 파이프라인 실행
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WP_SITE_ID: ${{ secrets.WP_SITE_ID }}
+          WP_ACCESS_TOKEN: ${{ secrets.WP_ACCESS_TOKEN }}
+          WP_BLOG_URL: ${{ secrets.WP_BLOG_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.category }}" != "" ] && [ "${{ github.event.inputs.category }}" != "auto" ]; then
+            npm run pipeline -- --category=${{ github.event.inputs.category }}
+          else
+            npm run pipeline
+          fi

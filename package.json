@@ -1,0 +1,23 @@
+{
+  "name": "ai-blog-automation",
+  "version": "1.0.0",
+  "description": "AI Automated SEO Blog Pipeline with WordPress, Telegram & Gemini",
+  "main": "dist/pipeline.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "pipeline": "tsx src/pipeline.ts",
+    "test-pipeline": "tsx src/pipeline.ts --category=economy"
+  },
+  "dependencies": {
+    "@google/genai": "^2.18.0",
+    "dotenv": "^17.4.2",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@vercel/node": "^5.10.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}
