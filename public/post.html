@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>칼럼 상세 | 인사이트 머니 & 리얼티</title>
+  
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --accent-blue: #3182f6;
+      --font: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: #ffffff; color: var(--text-main); line-height: 1.85; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent-blue); text-decoration: none; }
+
+    .container { max-width: 740px; margin: 0 auto; padding: 0 20px; }
+
+    /* 헤더 */
+    header { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .brand { font-size: 17px; font-weight: 800; color: var(--text-main); text-decoration: none; }
+    .brand span { color: var(--accent-blue); }
+    .back-btn { font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+    .back-btn:hover { color: var(--text-main); }
+
+    /* 아티클 헤더 */
+    article { padding: 48px 0 80px 0; }
+    .article-meta { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }
+    .post-category { color: var(--accent-blue); font-weight: 700; background: #eff6ff; padding: 3px 10px; border-radius: 4px; }
+    h1.post-title { font-size: 32px; font-weight: 800; line-height: 1.38; letter-spacing: -0.8px; margin-bottom: 24px; color: #0f172a; }
+
+    /* 작성자 및 감수 배지 */
+    .author-box { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #f8fafc; border-radius: 12px; margin-bottom: 36px; border: 1px solid var(--border); font-size: 13.5px; }
+    .author-info { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+    .badge-review { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+
+    /* 본문 스타일링 (Medium 감성) */
+    .post-body { font-size: 17px; color: #334155; line-height: 1.9; }
+    .post-body p { margin-bottom: 22px; }
+    .post-body h2 { font-size: 23px; font-weight: 800; color: #0f172a; margin: 44px 0 18px 0; letter-spacing: -0.4px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
+    .post-body h3 { font-size: 19px; font-weight: 700; color: #1e293b; margin: 30px 0 14px 0; }
+    .post-body strong { color: #0f172a; font-weight: 700; }
+    .post-body ul, .post-body ol { margin: 16px 0 24px 20px; }
+    .post-body li { margin-bottom: 8px; }
+    .post-body blockquote { border-left: 4px solid var(--accent-blue); padding: 14px 20px; background: #f8fafc; border-radius: 0 8px 8px 0; margin: 24px 0; font-size: 16px; color: #475569; }
+    .post-body table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14.5px; }
+    .post-body th, .post-body td { padding: 10px 14px; border: 1px solid #e2e8f0; }
+
+    /* 애드센스 반응형 슬롯 */
+    .ad-slot { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; margin: 36px 0; }
+
+    /* 공유 및 태그 영역 */
+    .post-footer { margin-top: 50px; padding-top: 30px; border-top: 1px solid var(--border); }
+    .tag-list { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .tag-item { background: #f1f5f9; padding: 5px 12px; border-radius: 6px; font-size: 13.5px; color: #475569; }
+
+    /* 푸터 */
+    footer { border-top: 1px solid var(--border); background: #fafbfc; padding: 40px 0; font-size: 13.5px; color: var(--text-muted); text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- 헤더 -->
+  <header>
+    <div class="container nav-inner">
+      <a href="/" class="brand">Insight <span>Realty & Money</span></a>
+      <a href="/" class="back-btn">← 전체 칼럼 목록</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <article id="article">
+      <div id="loading" style="text-align:center; padding: 80px 0; color: var(--text-muted);">
+        칼럼을 불러오는 중입니다...
+      </div>
+    </article>
+  </main>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="container">
+      <p>© 2026 인사이트 머니 & 리얼티 (zozero94.com)</p>
+      <p style="font-size: 12px; margin-top: 6px; color: #94a3b8;">본 콘텐츠의 저작권은 인사이트 머니 & 리얼티에 있습니다.</p>
+    </div>
+  </footer>
+
+  <script>
+    async function loadDetail() {
+      const params = new URLSearchParams(window.location.search);
+      const postId = params.get('id');
+
+      if (!postId) {
+        window.location.href = '/';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/posts?id=${postId}`);
+        if (!res.ok) throw new Error('Not found');
+        const post = await res.json();
+
+        document.title = `${post.title} | 인사이트 머니 & 리얼티`;
+
+        const date = new Date(post.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+        const catName = Object.keys(post.categories || {})[0] || '경제';
+        const tags = Object.keys(post.tags || {});
+
+        const articleEl = document.getElementById('article');
+        articleEl.innerHTML = `
+          <div class="article-meta">
+            <span class="post-category">${catName}</span>
+            <span>발행일: ${date}</span>
+            <span>· 5분 완독</span>
+          </div>
+
+          <h1 class="post-title">${post.title}</h1>
+
+          <div class="author-box">
+            <div class="author-info">
+              <span>🏛️ 인사이트 리서치팀</span>
+              <span style="color:#cbd5e1;">|</span>
+              <span style="font-size:12.5px; color:#64748b;">국토부·한국은행·DART 교차 검증</span>
+            </div>
+            <div class="badge-review">13인 AI 감수 완료 ✅</div>
+          </div>
+
+          <!-- 상단 광고 슬롯 -->
+          <div class="ad-slot">Sponsored Ad Slot (Top)</div>
+
+          <!-- 본문 내용 -->
+          <div class="post-body">
+            ${post.content}
+          </div>
+
+          <!-- 하단 광고 슬롯 -->
+          <div class="ad-slot">Sponsored Ad Slot (Bottom)</div>
+
+          <!-- 태그 및 푸터 -->
+          <div class="post-footer">
+            <div class="tag-list">
+              ${tags.map(t => `<span class="tag-item">#${t}</span>`).join('')}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <a href="/" style="font-weight:700;">← 목록으로 돌아가기</a>
+              <button onclick="navigator.clipboard.writeText(window.location.href); alert('링크가 복사되었습니다!');" style="background:#eff6ff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; color:var(--accent-blue); cursor:pointer;">🔗 링크 공유</button>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('article').innerHTML = '<div style="text-align:center; padding: 60px 0;">글을 찾을 수 없거나 삭제되었습니다. <a href="/">홈으로 가기</a></div>';
+      }
+    }
+
+    loadDetail();
+  </script>
+</body>
+</html>
