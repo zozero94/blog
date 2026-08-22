@@ -12,15 +12,42 @@ export class TelegramClient {
   }
 
   /**
-   * 임시글 승인 요청 메시지 및 인라인 버튼 전송
+   * 커스텀 마크업과 함께 메시지 전송
+   */
+  async sendMessageWithMarkup(
+    text: string,
+    replyMarkup: any
+  ): Promise<{ message_id: number }> {
+    const url = `${this.baseUrl}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: this.chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: false,
+        reply_markup: replyMarkup,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API 메시지 전송 실패 (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    return { message_id: data.result.message_id };
+  }
+
+  /**
+   * 임시글 승인 요청 메시지 및 인라인 버튼 전송 (단일 워드프레스용 레거시 호환)
    */
   async sendDraftApproval(
     categoryName: string,
     post: GeneratedPost,
     wpPost: WordPressPostResponse
   ): Promise<{ message_id: number }> {
-    const url = `${this.baseUrl}/sendMessage`;
-
     const tagText = post.tags.map((t) => `#${t.replace(/\s+/g, '')}`).join(' ');
     const text = `📢 <b>[AI 자동화] ${categoryName} 포스팅 승인 요청</b>
 
@@ -44,25 +71,7 @@ ${escapeHtml(post.summary)}
       ],
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: this.chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false,
-        reply_markup: replyMarkup,
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Telegram API 메시지 전송 실패 (${response.status}): ${errText}`);
-    }
-
-    const data = await response.json();
-    return { message_id: data.result.message_id };
+    return await this.sendMessageWithMarkup(text, replyMarkup);
   }
 
   /**

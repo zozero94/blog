@@ -5,6 +5,7 @@ import { fetchPublicDataForCategory } from './public-data.js';
 import { generateSingleTopicPost } from './ai.js';
 import { executeTwoRoundReviewLoop } from './reviewer.js';
 import { WordPressClient } from './wordpress.js';
+import { BloggerClient } from './blogger.js';
 import { TelegramClient } from './telegram.js';
 
 function getCategoryFromArgs(): BlogCategory {
@@ -33,7 +34,7 @@ function getCategoryFromArgs(): BlogCategory {
 
 async function run() {
   console.log('================================================================');
-  console.log('🚀 AI 단일주제 심층 블로그 + 12인 2회 감수 파이프라인');
+  console.log('🚀 AI 단일주제 심층 블로그 [WordPress + Google Blogger 듀얼 파이프라인]');
   console.log('================================================================');
 
   // 환경변수 검증
@@ -47,7 +48,12 @@ async function run() {
   const dataGoKrKey = process.env.DATA_GO_KR_API_KEY;
   const dartKey = process.env.DART_API_KEY;
 
-  if (!geminiApiKey || !wpSiteId || !wpAccessToken || !telegramBotToken || !telegramChatId) {
+  const bloggerBlogId = process.env.BLOGGER_BLOG_ID;
+  const bloggerClientId = process.env.BLOGGER_CLIENT_ID;
+  const bloggerClientSecret = process.env.BLOGGER_CLIENT_SECRET;
+  const bloggerRefreshToken = process.env.BLOGGER_REFRESH_TOKEN;
+
+  if (!geminiApiKey || !telegramBotToken || !telegramChatId) {
     console.error('❌ 필수 환경변수가 누락되었습니다. (.env 확인 필요)');
     process.exit(1);
   }
@@ -55,7 +61,7 @@ async function run() {
   const category = getCategoryFromArgs();
   console.log(`📌 포스팅 분야: [${category}] ${CATEGORY_CONFIGS[category].name}`);
 
-  // [파이프라인 1단계] 단일 핵심 주제 선정 및 3단계 교차 보도 수집
+  // [1단계] 단일 핵심 주제 선정 및 3단계 교차 보도 수집
   console.log('\n[1/6] 📰 핫이슈 단일 주제 선정 & 3개 이상 유사 보도 교차 수집');
   const topicResult = await collectSingleTopicPipeline(geminiApiKey, category);
   console.log(`✅ 교차 검증 소스 총 ${topicResult.crossSources.length}건 확보:`);
@@ -63,7 +69,7 @@ async function run() {
     console.log(`   - [소스 ${idx + 1}] (${s.source || '언론사'}) ${s.title}`);
   });
 
-  // [파이프라인 2단계] 공공기관 공식 데이터 실시간 조회 (한국은행 / 국토교통부 / DART)
+  // [2단계] 공공기관 공식 데이터 실시간 조회 (한국은행 / 국토교통부 / DART)
   console.log('\n[2/6] 🏛️ 공공기관 공식 팩트체크 데이터 실시간 조회');
   const publicData = await fetchPublicDataForCategory(category, {
     ecosKey,
@@ -78,7 +84,7 @@ async function run() {
     console.log('ℹ️ 해당 카테고리 공공데이터는 기본 표준 통계로 대체됩니다.');
   }
 
-  // [파이프라인 3단계] Gemini AI 1차 초안 원고 생성
+  // [3단계] Gemini AI 1차 초안 원고 작성
   console.log('\n[3/6] 🤖 Gemini AI 기반 1차 단일 주제 초안 원고 작성');
   const initialPost = await generateSingleTopicPost(
     geminiApiKey,
@@ -89,7 +95,7 @@ async function run() {
   );
   console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-  // [파이프라인 4단계 - ★ 스킬 자동 트리거] 12인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
+  // [4단계 - ★ 스킬 자동 트리거] 12인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
   console.log('\n[4/6] 🛡️ [자동 트리거] 12인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 가동');
   const { finalPost, reviewSummary } = await executeTwoRoundReviewLoop(
     geminiApiKey,
@@ -97,33 +103,75 @@ async function run() {
     publicData
   );
 
-  // [파이프라인 5단계] 워드프레스 Draft 등록
-  console.log('\n[5/6] 📝 2회 감수를 마친 최종 완성본을 워드프레스 임시글(Draft)로 등록');
-  const wpClient = new WordPressClient(wpSiteId, wpAccessToken);
-  const wpPost = await wpClient.createDraftPost(finalPost);
-  console.log(`✅ 워드프레스 등록 성공!`);
-  console.log(`   - Post ID: ${wpPost.ID}`);
-  console.log(`   - 미리보기 URL: ${wpPost.URL}`);
+  // [5단계] WordPress & Google Blogger 듀얼 등록
+  console.log('\n[5/6] 📝 WordPress 및 Google Blogger 양쪽으로 임시글(Draft) 동시 등록');
+  let wpPost = null;
+  let bloggerPost = null;
 
-  // [파이프라인 6단계] 텔레그램 승인 알림 발송 (12인 감수 결과 요약 포함)
-  console.log('\n[6/6] 📱 텔레그램 승인 알림 및 12인 감수 요약 발송');
+  if (wpSiteId && wpAccessToken) {
+    try {
+      const wpClient = new WordPressClient(wpSiteId, wpAccessToken);
+      wpPost = await wpClient.createDraftPost(finalPost);
+      console.log(`✅ [1/2] WordPress 등록 성공! (ID: ${wpPost.ID}, URL: ${wpPost.URL})`);
+    } catch (e) {
+      console.warn('⚠️ WordPress 등록 실패:', e);
+    }
+  }
+
+  if (bloggerBlogId && bloggerClientId && bloggerClientSecret && bloggerRefreshToken) {
+    try {
+      const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
+      bloggerPost = await bloggerClient.createDraftPost(finalPost);
+      console.log(`✅ [2/2] Google Blogger(애드센스용) 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
+    } catch (e) {
+      console.warn('⚠️ Google Blogger 등록 실패:', e);
+    }
+  }
+
+  // [6단계] 텔레그램 듀얼 승인 알림 발송
+  console.log('\n[6/6] 📱 텔레그램 듀얼 승인 알림 발송');
   const telegramClient = new TelegramClient(telegramBotToken, telegramChatId);
-  const modifiedSummaryPost = {
-    ...finalPost,
-    summary: `${finalPost.summary}\n\n🏛️ <b>12인 전문가 감수 결과:</b> ${reviewSummary}`,
+  
+  const wpId = wpPost?.ID || 'none';
+  const bloggerId = bloggerPost?.id || 'none';
+  const callbackId = `${wpId}_${bloggerId}`;
+
+  const linkText = `🔗 <b>워드프레스:</b> ${wpPost?.URL ? `<a href="${wpPost.URL}">${wpPost.URL}</a>` : '미등록'}\n🌐 <b>구글 블로그:</b> ${bloggerPost?.url ? `<a href="${bloggerPost.url}">${bloggerPost.url}</a>` : '미등록'}`;
+
+  const messageText = `📢 <b>[AI 자동화] ${topicResult.config.name} 듀얼 포스팅 승인 요청</b>
+
+📝 <b>제목:</b> ${escapeHtml(finalPost.title)}
+
+💡 <b>3줄 핵심 요약:</b>
+${escapeHtml(finalPost.summary)}
+
+🏛️ <b>12인 감수 결과:</b> ${escapeHtml(reviewSummary)}
+🏷️ <b>태그:</b> ${escapeHtml(finalPost.tags.map((t) => `#${t.replace(/\s+/g, '')}`).join(' '))}
+
+${linkText}
+
+아래 버튼을 누르면 <b>워드프레스와 구글 블로그에 동시 반영</b>됩니다:`;
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: '✅ 양쪽 동시 즉시 발행', callback_data: `publish:${callbackId}` },
+        { text: '❌ 동시 삭제', callback_data: `delete:${callbackId}` },
+      ],
+    ],
   };
 
-  const { message_id } = await telegramClient.sendDraftApproval(
-    topicResult.config.name,
-    modifiedSummaryPost,
-    wpPost
-  );
-  console.log(`✅ 텔레그램 알림 전송 완료! (Message ID: ${message_id})`);
+  const { message_id } = await telegramClient.sendMessageWithMarkup(messageText, replyMarkup);
+  console.log(`✅ 텔레그램 듀얼 승인 알림 전송 완료! (Message ID: ${message_id})`);
 
   console.log('\n================================================================');
-  console.log('🎉 12인 2회 감수 자동화 파이프라인 사이클 100% 완료!');
-  console.log('📱 텔레그램에서 최종 완성본을 검토하고 [✅ 즉시 발행] 버튼을 눌러주세요.');
+  console.log('🎉 듀얼 블로그 12인 감수 자동화 파이프라인 100% 완료!');
+  console.log('📱 텔레그램에서 검토 후 [✅ 양쪽 동시 즉시 발행] 버튼을 눌러주세요.');
   console.log('================================================================');
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 run().catch((err) => {

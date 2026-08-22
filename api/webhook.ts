@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { WordPressClient } from '../src/wordpress.js';
+import { BloggerClient } from '../src/blogger.js';
 import { TelegramClient } from '../src/telegram.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -12,20 +13,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
   const allowedChatId = process.env.TELEGRAM_CHAT_ID;
 
-  if (!wpSiteId || !wpAccessToken || !telegramBotToken || !allowedChatId) {
+  const bloggerBlogId = process.env.BLOGGER_BLOG_ID;
+  const bloggerClientId = process.env.BLOGGER_CLIENT_ID;
+  const bloggerClientSecret = process.env.BLOGGER_CLIENT_SECRET;
+  const bloggerRefreshToken = process.env.BLOGGER_REFRESH_TOKEN;
+
+  if (!telegramBotToken || !allowedChatId) {
     console.error('Environment variables missing');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   const telegram = new TelegramClient(telegramBotToken, allowedChatId);
-  const wp = new WordPressClient(wpSiteId, wpAccessToken);
+  const wp = (wpSiteId && wpAccessToken) ? new WordPressClient(wpSiteId, wpAccessToken) : null;
+  const blogger = (bloggerBlogId && bloggerClientId && bloggerClientSecret && bloggerRefreshToken)
+    ? new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken)
+    : null;
 
   try {
     const update = req.body;
     const callbackQuery = update?.callback_query;
 
     if (!callbackQuery) {
-      // 일반 메시지나 기타 이벤트는 무시하고 200 반환
       return res.status(200).json({ ok: true });
     }
 
@@ -36,7 +44,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatId = message?.chat?.id;
     const messageId = message?.message_id;
 
-    // 본인 확인 (인증된 관리자만 처리)
     if (fromId !== allowedChatId) {
       await telegram.answerCallbackQuery(callbackId, '⚠️ 권한이 없습니다.');
       return res.status(200).json({ ok: true });
@@ -47,32 +54,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true });
     }
 
-    const [action, postIdStr] = data.split(':');
-    const postId = parseInt(postIdStr, 10);
-
-    if (!postId || isNaN(postId)) {
-      await telegram.answerCallbackQuery(callbackId, '유효하지 않은 Post ID입니다.');
-      return res.status(200).json({ ok: true });
-    }
+    const [action, combinedIds] = data.split(':');
+    const [wpIdStr, bloggerIdStr] = (combinedIds || '').split('_');
 
     const originalText = message.text || '';
 
     if (action === 'publish') {
-      await telegram.answerCallbackQuery(callbackId, '발행 처리 중...');
-      const published = await wp.publishPost(postId);
+      await telegram.answerCallbackQuery(callbackId, '듀얼 블로그 동시 발행 처리 중...');
+      const results: string[] = [];
 
-      const updatedText = `${originalText}\n\n━━━━━━━━━━━━━━━━━━━━\n🎉 <b>[발행 완료]</b> 블로그에 정식 공개되었습니다!\n🔗 <b>글 보러가기:</b> <a href="${published.URL}">${published.URL}</a>`;
+      // 1. 워드프레스 발행
+      if (wp && wpIdStr && wpIdStr !== 'none') {
+        try {
+          const publishedWp = await wp.publishPost(wpIdStr);
+          results.push(`🔗 <b>워드프레스:</b> <a href="${publishedWp.URL}">${publishedWp.URL}</a>`);
+        } catch (e) {
+          console.error('WP Publish Error:', e);
+        }
+      }
+
+      // 2. 구글 블로거 발행
+      if (blogger && bloggerIdStr && bloggerIdStr !== 'none') {
+        try {
+          const publishedBlogger = await blogger.publishPost(bloggerIdStr);
+          results.push(`🌐 <b>구글 블로그 (애드센스):</b> <a href="${publishedBlogger.url}">${publishedBlogger.url}</a>`);
+        } catch (e) {
+          console.error('Blogger Publish Error:', e);
+        }
+      }
+
+      const updatedText = `${originalText}\n\n━━━━━━━━━━━━━━━━━━━━\n🎉 <b>[듀얼 발행 완료]</b> 워드프레스와 구글 블로그에 정식 공개되었습니다!\n${results.join('\n')}`;
       await telegram.editMessageText(chatId, messageId, updatedText);
 
-      return res.status(200).json({ ok: true, action: 'publish', postId });
+      return res.status(200).json({ ok: true, action: 'publish', wpId: wpIdStr, bloggerId: bloggerIdStr });
     } else if (action === 'delete') {
       await telegram.answerCallbackQuery(callbackId, '삭제 처리 중...');
-      await wp.deletePost(postId);
 
-      const updatedText = `${originalText}\n\n━━━━━━━━━━━━━━━━━━━━\n🗑️ <b>[삭제 완료]</b> 해당 임시글이 정상적으로 휴지통으로 이동되었습니다.`;
+      if (wp && wpIdStr && wpIdStr !== 'none') {
+        try { await wp.deletePost(wpIdStr); } catch (e) {}
+      }
+      if (blogger && bloggerIdStr && bloggerIdStr !== 'none') {
+        try { await blogger.deletePost(bloggerIdStr); } catch (e) {}
+      }
+
+      const updatedText = `${originalText}\n\n━━━━━━━━━━━━━━━━━━━━\n🗑️ <b>[삭제 완료]</b> 양쪽 블로그의 임시글이 정상적으로 삭제되었습니다.`;
       await telegram.editMessageText(chatId, messageId, updatedText);
 
-      return res.status(200).json({ ok: true, action: 'delete', postId });
+      return res.status(200).json({ ok: true, action: 'delete' });
     }
 
     await telegram.answerCallbackQuery(callbackId, '알 수 없는 명령입니다.');
