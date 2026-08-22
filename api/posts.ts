@@ -24,12 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // 포스트 목록 조회
-    let url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=20&status=publish`;
-    if (category) {
-      url += `&category=${encodeURIComponent(String(category))}`;
-    }
-
+    // 포스트 목록 조회 (최신 30건 가져온 후 유연 필터링)
+    const url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=30&status=publish`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${wpToken}` },
     });
@@ -39,7 +35,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await response.json();
-    return res.status(200).json(data);
+    let posts = data.posts || [];
+
+    // 카테고리 필터링 요청이 있는 경우 유연 매칭 (경제/부동산/재테크)
+    if (category) {
+      const catQuery = String(category).replace(/[·\s]/g, '').toLowerCase();
+      posts = posts.filter((p: any) => {
+        const catKeys = Object.keys(p.categories || {});
+        return catKeys.some((k) => {
+          const cleanK = k.replace(/[·\s]/g, '').toLowerCase();
+          return cleanK.includes(catQuery) || catQuery.includes(cleanK);
+        });
+      });
+    }
+
+    return res.status(200).json({ found: posts.length, posts });
   } catch (error) {
     console.error('API Error:', error);
     return res.status(500).json({ error: 'Failed to fetch posts' });

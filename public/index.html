@@ -113,9 +113,9 @@
     <!-- 카테고리 필터 탭 -->
     <div class="tabs">
       <div class="tab active" data-cat="">전체 글</div>
-      <div class="tab" data-cat="시사·경제">시사 · 경제</div>
+      <div class="tab" data-cat="경제">시사 · 경제</div>
       <div class="tab" data-cat="부동산">부동산</div>
-      <div class="tab" data-cat="재테크·금융">재테크 · 금융</div>
+      <div class="tab" data-cat="재테크">재테크 · 금융</div>
     </div>
 
     <!-- 상단 애드센스 반응형 슬롯 -->
@@ -145,68 +145,84 @@
   </footer>
 
   <script>
+    let allPosts = [];
     let currentCategory = '';
 
-    async function loadPosts(category = '') {
+    function renderFeed(posts) {
+      const feedEl = document.getElementById('feed');
+      if (!posts || posts.length === 0) {
+        feedEl.innerHTML = '<div class="loader" style="padding: 60px 0;">해당 분야에 등록된 칼럼이 없습니다. 곧 새로운 분석 리포트가 등록됩니다!</div>';
+        return;
+      }
+
+      feedEl.innerHTML = posts.map(post => {
+        const date = new Date(post.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+        const catName = Object.keys(post.categories || {})[0] || '경제';
+        const tags = Object.keys(post.tags || {}).slice(0, 3);
+
+        // HTML 태그 정제
+        const tmp = document.createElement('div');
+        tmp.innerHTML = post.excerpt || post.content || '';
+        const cleanExcerpt = (tmp.textContent || tmp.innerText || '').replace(/<[^>]*>?/gm, '').trim().slice(0, 160);
+
+        return `
+          <a href="/post.html?id=${post.ID}" class="article-card">
+            <div class="card-meta">
+              <span class="card-category">${catName}</span>
+              <span>${date}</span>
+              <span>· 5분 읽기</span>
+            </div>
+            <h2 class="card-title">${post.title}</h2>
+            <p class="card-excerpt">${cleanExcerpt}...</p>
+            <div class="card-footer">
+              <div class="card-tags">
+                ${tags.map(t => `<span class="tag">#${t}</span>`).join('')}
+              </div>
+              <span style="font-weight: 600; color: var(--accent-blue);">전문 읽기 →</span>
+            </div>
+          </a>
+        `;
+      }).join('');
+    }
+
+    async function fetchPosts() {
       const feedEl = document.getElementById('feed');
       feedEl.innerHTML = '<div class="loader">칼럼을 불러오는 중입니다...</div>';
 
       try {
-        const url = category ? `/api/posts?category=${encodeURIComponent(category)}` : '/api/posts';
-        const res = await fetch(url);
+        const res = await fetch('/api/posts');
         const data = await res.json();
-        const posts = data.posts || [];
-
-        if (posts.length === 0) {
-          feedEl.innerHTML = '<div class="loader" style="padding: 60px 0;">아직 발행된 포스팅이 없습니다. 곧 새로운 분석 칼럼이 등록됩니다!</div>';
-          return;
-        }
-
-        feedEl.innerHTML = posts.map(post => {
-          const date = new Date(post.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-          const catName = Object.keys(post.categories || {})[0] || '경제';
-          const tags = Object.keys(post.tags || {}).slice(0, 3);
-
-          // HTML 태그 제거한 깔끔한 요약 텍스트
-          const tmp = document.createElement('div');
-          tmp.innerHTML = post.excerpt || post.content;
-          const cleanExcerpt = tmp.textContent || tmp.innerText || '';
-
-          return `
-            <a href="/post.html?id=${post.ID}" class="article-card">
-              <div class="card-meta">
-                <span class="card-category">${catName}</span>
-                <span>${date}</span>
-                <span>· 5분 읽기</span>
-              </div>
-              <h2 class="card-title">${post.title}</h2>
-              <p class="card-excerpt">${cleanExcerpt}</p>
-              <div class="card-footer">
-                <div class="card-tags">
-                  ${tags.map(t => `<span class="tag">#${t}</span>`).join('')}
-                </div>
-                <span style="font-weight: 600; color: var(--accent-blue);">전문 읽기 →</span>
-              </div>
-            </a>
-          `;
-        }).join('');
+        allPosts = data.posts || [];
+        filterAndRender();
       } catch (err) {
         console.error(err);
-        feedEl.innerHTML = '<div class="loader">글을 불러오는 중 오류가 발생했습니다.</div>';
+        feedEl.innerHTML = '<div class="loader">글을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
       }
     }
 
-    // 탭 클릭 이벤트
+    function filterAndRender() {
+      if (!currentCategory) {
+        renderFeed(allPosts);
+      } else {
+        const filtered = allPosts.filter(p => {
+          const catKeys = Object.keys(p.categories || {});
+          return catKeys.some(k => k.includes(currentCategory) || currentCategory.includes(k));
+        });
+        renderFeed(filtered);
+      }
+    }
+
+    // 탭 클릭 이벤트 (지연 없는 즉각 전환)
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', (e) => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         e.target.classList.add('active');
-        currentCategory = e.target.dataset.cat;
-        loadPosts(currentCategory);
+        currentCategory = e.target.dataset.cat || '';
+        filterAndRender();
       });
     });
 
-    loadPosts();
+    fetchPosts();
   </script>
 </body>
 </html>
