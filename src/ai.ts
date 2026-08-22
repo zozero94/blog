@@ -35,55 +35,71 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
     const tableRows = publicData.items
       .map(
         (it) =>
-          `<tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #f8fafc;">${it.label}</td><td style="padding: 8px; border: 1px solid #e2e8f0; color: #1e40af; font-weight: bold;">${it.value}</td><td style="padding: 8px; border: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">${it.extra || '-'}</td></tr>`
+          `<tr>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; background: #f8fafc; font-size: 14px; color: #1e293b;">${it.label}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #1d4ed8; font-weight: 700; font-size: 14px;">${it.value}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">${it.extra || '-'}</td>
+          </tr>`
       )
       .join('');
 
     publicDataHtmlGuide = `
-[필수 요구사항 - 공공기관 공식 팩트체크 박스]
-본문 중간(서론과 1차 소주제 직후)에 반드시 아래 스타일의 HTML 공식 데이터 박스를 삽입하여 공신력을 극대화하세요:
-<div style="background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 16px; margin: 24px 0;">
-  <h4 style="margin-top: 0; color: #166534; font-size: 16px;">📌 [${publicData.sourceName}] 공식 팩트체크 데이터</h4>
-  <p style="font-size: 14px; color: #374151; margin-bottom: 12px;">최근 공공기관에 등록된 실제 공인 데이터 및 지표 현황입니다.</p>
-  <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-    <thead>
-      <tr style="background: #e2e8f0;">
-        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">항목</th>
-        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">공식 수치 / 지표</th>
-        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">비고 / 기준</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${tableRows}
-    </tbody>
-  </table>
+[필수 요구사항 - 모바일 최적화 공공기관 공식 팩트체크 박스]
+본문 서론 직후에 반드시 아래 스타일의 세련된 모바일 반응형 HTML 공식 데이터 박스를 삽입하세요:
+<div style="background-color: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 18px 20px; margin: 25px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+  <div style="display: flex; align-items: center; margin-bottom: 10px;">
+    <span style="font-size: 18px; margin-right: 6px;">📌</span>
+    <h4 style="margin: 0; color: #166534; font-size: 16px; font-weight: 700;">[${publicData.sourceName}] 공식 팩트체크 데이터</h4>
+  </div>
+  <p style="font-size: 13.5px; color: #4b5563; margin: 0 0 12px 0; line-height: 1.5;">공공기관에 등록된 실제 공인 데이터 및 지표 현황입니다.</p>
+  <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 300px;">
+      <thead>
+        <tr style="background: #e2e8f0;">
+          <th style="padding: 8px 12px; border-bottom: 2px solid #cbd5e1; font-size: 13px; color: #334155;">항목</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #cbd5e1; font-size: 13px; color: #334155;">공식 수치 / 지표</th>
+          <th style="padding: 8px 12px; border-bottom: 2px solid #cbd5e1; font-size: 13px; color: #334155;">비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+      </tbody>
+    </table>
+  </div>
 </div>`;
   }
 
-  const systemInstruction = `당신은 대한민국 최고의 경제/부동산/재테크 전문 수석 칼럼니스트이자 고수익 블로그 SEO 전문가입니다.
+  const systemInstruction = `당신은 대한민국 최고 수준의 경제/부동산/재테크 수석 칼럼니스트이자 웹 & 모바일 반응형 UI/UX 전문 콘텐츠 디렉터입니다.
 
-[핵심 작성 원칙]
-1. **단일 주제 집중 (Single Deep Dive)**: 여러 잡다한 이슈를 섞지 말고, 주어진 **[단 1개의 핵심 주제: "${mainTopicTitle}"]**에 대해서만 깊이 있고 전문적인 단독 분석 칼럼을 완성하세요.
-2. **다중 소스 교차 검증 (Cross-Verification)**: 제공된 3개 이상의 유사 언론 보도 소스를 비교 분석하여 팩트가 확인된 내용만을 근거로 삼고, 서로 다른 시각이나 쟁점을 균형 있게 다루세요.
-3. **독자 체류시간 & 애드센스 최적화 구조**:
-   - 가독성 높은 HTML 태그(<h2>, <h3>, <strong>, <ul>, <ol>, <blockquote>, <table>)를 적재적소에 배치하세요.
-   - 구성:
-     ① 도입부: 왜 지금 이 주제가 가장 뜨거운 이슈인지 + 핵심 요약 3줄 (Callout 박스)
-     ② 📌 [정부/공공기관 공식 팩트체크 박스] (제시된 템플릿 준수)
-     ③ <h2> 1. 현상 분석: 무엇이 왜 일어났는가? (원인과 배경)
-     ④ <h2> 2. 독자/투자자 관점의 직접적 영향: 내 자산에는 어떤 변화가 오는가?
-     ⑤ <h2> 3. 실전 대응 가이드: 지금 당장 실천할 수 있는 체크리스트 3가지
-     ⑥ <h2> 4. 독자들이 가장 궁금해하는 FAQ 3선 (Q&A 형식)
-     ⑦ 결론: 전문가 최종 제언 및 1줄 요약
+[핵심 작성 및 UI/UX 원칙]
+1. **단일 주제 집중 (Single Deep Dive)**: 주어진 **[단 1개의 핵심 주제: "${mainTopicTitle}"]**에 대해서만 깊이 있는 단독 칼럼을 완성하세요.
+2. **다중 소스 교차 검증 (Cross-Verification)**: 3개 이상의 유사 언론 보도와 공공 데이터를 교차 검증하여 팩트 중심의 명쾌한 인과관계를 서술하세요.
+3. **📱 웹 & 모바일 반응형 UI/UX 최적화 스타일**:
+   - **문단 길이**: 스마트폰 작은 화면에서도 답답하지 않도록 한 문단은 2~4문장 이내로 끊어서 작성하세요.
+   - **가독성 강조**: 핵심 키워드나 수치에는 <strong> 태그를 적극 적용하세요.
+   - **도입부 3줄 요약 박스**: 
+     <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px 18px; border-radius: 8px; margin-bottom: 25px; line-height: 1.7;">
+       <strong style="color: #1e40af; font-size: 15px;">💡 3줄 핵심 요약</strong>
+       <ul style="margin: 8px 0 0 0; padding-left: 18px; font-size: 14.5px; color: #1e293b;">...</ul>
+     </div>
+   - **구성**:
+     ① 도입부: 문제 제기 + 3줄 핵심 요약 박스
+     ② 📌 [정부/공공기관 공식 팩트체크 박스]
+     ③ <h2> 1. 현상 분석: 왜 지금 이 이슈가 터져 나왔는가? (배경 및 원인)
+     ④ <h2> 2. 시장 심리와 파급력: 내 자산과 통장에 미치는 실질적 영향
+     ⑤ <h2> 3. 실전 자산 시뮬레이션: 구체적 셈법 (이자/세금/수익률 계산표)
+     ⑥ <h2> 4. 맞춤형 3대 실천 행동 수칙 (초심자/실수요자/투자자별)
+     ⑦ <h2> 5. 가장 자주 묻는 FAQ 3선
+     ⑧ 결론: 최종 제언 및 1줄 요약
 
 [출력 형식]
 반드시 다음 JSON 포맷으로만 응답하세요 (마크다운 백틱 없이 순수 JSON):
 {
-  "title": "클릭률을 극대화하는 매력적인 SEO 제목 (예: [단독분석] 주제...)",
+  "title": "클릭률을 극대화하는 매력적인 SEO 제목",
   "summary": "3줄 핵심 요약 (텔레그램 및 메타 미리보기용)",
-  "metaDescription": "구글 검색엔진 노출용 150자 내외 메타 디스크립션",
-  "tags": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5", "키워드6"],
-  "htmlContent": "<p>...</p><h2>...</h2>..."
+  "metaDescription": "검색엔진 최적화 150자 내외 메타 디스크립션",
+  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5", "태그6"],
+  "htmlContent": "<p>완성된 반응형 HTML 본문...</p>"
 }`;
 
   const prompt = `[카테고리]: ${config.name} (${config.topic})
@@ -96,7 +112,7 @@ ${publicDataPrompt}
 
 ${publicDataHtmlGuide}
 
-위의 교차 검증된 보도 자료와 공공기관 공식 데이터를 바탕으로, 독자들에게 최고의 신뢰와 실질적인 해결책을 주는 완결형 단일 주제 블로그 포스팅을 작성해 주세요.`;
+위 정보를 바탕으로 모바일과 PC 양쪽에서 가장 읽기 편하고 신뢰도 높은 완결형 블로그 포스팅을 작성해 주세요.`;
 
   const response = await generateContentWithFallback(ai, {
     contents: prompt,
