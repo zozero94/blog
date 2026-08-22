@@ -1,6 +1,7 @@
 import Parser from 'rss-parser';
 import { GoogleGenAI } from '@google/genai';
 import { BlogCategory, CategoryConfig, NewsItem } from './types.js';
+import { getOptimalGeminiModel } from './model-resolver.js';
 
 const parser = new Parser({
   headers: {
@@ -110,7 +111,7 @@ ${headlineList}
 }`;
 
   try {
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+    const modelName = await getOptimalGeminiModel(apiKey);
     const response = await ai.models.generateContent({
       model: modelName,
       contents: prompt,
