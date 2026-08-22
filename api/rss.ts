@@ -17,7 +17,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const pubDate = new Date(p.date).toUTCString();
       const link = `https://zozero94.com/post.html?id=${p.ID}`;
       const title = escapeXml(p.title || '');
-      const description = escapeXml(p.excerpt || p.content || '');
+      const rawDesc = (p.excerpt || p.content || '').replace(/<[^>]*>?/gm, '').trim();
+      const description = escapeXml(rawDesc.slice(0, 300));
 
       return `
     <item>

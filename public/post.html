@@ -114,7 +114,9 @@
         if (!res.ok) throw new Error('Not found');
         const post = await res.json();
 
-        document.title = `${post.title} | 인사이트 머니 & 리얼티`;
+        const doc = new DOMParser().parseFromString(post.title, 'text/html');
+        const cleanTitle = doc.body.textContent || post.title;
+        document.title = `${cleanTitle} | 인사이트 머니 & 리얼티`;
 
         const date = new Date(post.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
         const catName = Object.keys(post.categories || {})[0] || '경제';
