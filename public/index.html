@@ -15,24 +15,16 @@
   <!-- Naver Search Advisor Verification -->
   <meta name="naver-site-verification" content="7af3aa8d22c3d47e03c58e66ca1fd516347bf1ed" />
 
-  <!-- Firebase & Google Analytics -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+  <!-- Google Analytics 4 (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-M8W9G5KP58"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBcRHzAgxRGSoZ_8yxgNRnKrJwUzgHjmxs",
-      authDomain: "zozero94-462fc.firebaseapp.com",
-      projectId: "zozero94-462fc",
-      storageBucket: "zozero94-462fc.firebasestorage.app",
-      messagingSenderId: "813038880669",
-      appId: "1:813038880669:web:4ec5fb207aa99723e7d174",
-      measurementId: "G-M8W9G5KP58"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    gtag('config', 'G-M8W9G5KP58');
   </script>
+
 
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4169469417741632" crossorigin="anonymous"></script>
