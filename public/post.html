@@ -157,13 +157,68 @@
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <a href="/" style="font-weight:700;">← 목록으로 돌아가기</a>
-              <button onclick="navigator.clipboard.writeText(window.location.href); alert('링크가 복사되었습니다!');" style="background:#eff6ff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; color:var(--accent-blue); cursor:pointer;">🔗 링크 공유</button>
+              <button id="shareBtn" onclick="handleShare()" style="background:#eff6ff; border:1px solid #bfdbfe; padding:10px 18px; border-radius:8px; font-weight:700; color:var(--accent-blue); cursor:pointer; font-size:14px; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
+                <span>🔗</span> <span id="shareBtnText">링크 복사 & 공유</span>
+              </button>
             </div>
           </div>
         `;
       } catch (err) {
         console.error(err);
         document.getElementById('article').innerHTML = '<div style="text-align:center; padding: 60px 0;">글을 찾을 수 없거나 삭제되었습니다. <a href="/">홈으로 가기</a></div>';
+      }
+    }
+
+    async function handleShare() {
+      const shareData = {
+        title: document.title,
+        text: '인사이트 머니 & 리얼티 분석 칼럼을 확인해보세요!',
+        url: window.location.href,
+      };
+
+      // 모바일 네이티브 공유 시트 (카톡, 메시지 등)
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (e) {
+          if (e.name !== 'AbortError') console.warn(e);
+        }
+      }
+
+      // 클립보드 복사 폴백
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(window.location.href);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = window.location.href;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+
+        const btn = document.getElementById('shareBtn');
+        const text = document.getElementById('shareBtnText');
+        if (btn && text) {
+          const originalText = text.innerText;
+          btn.style.background = '#dcfce7';
+          btn.style.borderColor = '#86efac';
+          btn.style.color = '#166534';
+          text.innerText = '복사 완료! (단톡방에 붙여넣기)';
+          setTimeout(() => {
+            btn.style.background = '#eff6ff';
+            btn.style.borderColor = '#bfdbfe';
+            btn.style.color = 'var(--accent-blue)';
+            text.innerText = originalText;
+          }, 3000);
+        }
+      } catch (err) {
+        alert('링크 복사에 실패했습니다. 브라우저 주소창의 링크를 복사해주세요.');
       }
     }
 

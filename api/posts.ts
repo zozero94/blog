@@ -4,6 +4,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const wpSiteId = process.env.WP_SITE_ID || '256898514';
   const wpToken = process.env.WP_ACCESS_TOKEN;
 
+  // Vercel Edge CDN 캐싱 헤더 설정 (1분 캐시, 5분 백그라운드 갱신)
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+
   try {
     const { id, category } = req.query;
 
@@ -20,8 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // 포스트 목록 조회 (최근 발행된 글 20개)
-    let url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=20&status=publish`;
+    // 포스트 목록 조회 (본문 제외 경량화 필드 조회)
+    let url = `https://public-api.wordpress.com/rest/v1.1/sites/${wpSiteId}/posts/?number=20&status=publish&fields=ID,title,date,excerpt,categories,tags`;
     if (category) {
       url += `&category=${encodeURIComponent(String(category))}`;
     }
