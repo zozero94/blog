@@ -139,7 +139,7 @@ async function run() {
   const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
 📱 <b>구글 블로그:</b> ${bloggerPost?.url ? `<a href="${bloggerPost.url}">${bloggerPost.url}</a>` : 'https://zozero94.blogspot.com'}`;
 
-  const messageText = `📢 <b>[AI 자동화] ${topicResult.config.name} 듀얼 포스팅 승인 요청</b>
+  const messageText = `📢 <b>[인사이트 리서치] ${topicResult.config.name} 듀얼 포스팅 승인 요청</b>
 
 📝 <b>제목:</b> ${escapeHtml(finalPost.title)}
 
