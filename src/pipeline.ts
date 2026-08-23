@@ -57,9 +57,20 @@ async function run() {
   const category = getCategoryFromArgs();
   console.log(`📌 포스팅 분야: [${category}] ${CATEGORY_CONFIGS[category].name}`);
 
-  // [1단계] 단일 핵심 주제 선정 및 다중 언론사 교차 수집
-  console.log('\n[1/7] 📰 핫이슈 단일 주제 선정 & 4개 이상 유사 보도 교차 수집');
-  const topicResult = await collectSingleTopicPipeline(geminiApiKey, category);
+  // [사전 단계] 기존 발행된 글 목록 실시간 조회 (중복 주제 원천 차단용)
+  const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
+  let pastTitles: string[] = [];
+  try {
+    const recentPosts = await bloggerClient.getPosts(20);
+    pastTitles = recentPosts.map((p) => p.title);
+    console.log(`📚 최근 기발행 글 ${pastTitles.length}건 목록 확보 완료 (중복 배제 필터 가동)`);
+  } catch (err) {
+    console.warn('⚠️ 기발행 글 목록 조회 실패, 기본 수집 진행:', err);
+  }
+
+  // [1단계] 단일 핵심 주제 선정 및 다중 언론사 교차 수집 (과거 글 중복 배제)
+  console.log('\n[1/7] 📰 과거 주제와 중복 없는 새로운 핫이슈 선정 & 4개 이상 유사 보도 교차 수집');
+  const topicResult = await collectSingleTopicPipeline(geminiApiKey, category, pastTitles);
   console.log(`✅ 교차 검증 소스 총 ${topicResult.crossSources.length}건 확보:`);
   topicResult.crossSources.forEach((s, idx) => {
     console.log(`   - [소스 ${idx + 1}] (${s.source || '언론사'}) ${s.title}`);
@@ -109,7 +120,6 @@ async function run() {
 
   // [6단계] Google Blogger 임시글(Draft) 자동 등록
   console.log('\n[6/7] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록');
-  const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
   const bloggerPost = await bloggerClient.createDraftPost(finalPost);
   console.log(`✅ Google Blogger 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
 
