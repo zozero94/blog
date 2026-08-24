@@ -28,6 +28,7 @@ export interface VerifiedLink {
   relevanceScore?: number; // 0~100점
   suggestedCorrection?: string;
   verificationNotes: string;
+  linkType?: 'DIRECT_OFFICIAL' | 'VERIFIED_SEARCH' | 'MAP_PLACE' | 'PURCHASE_CTA';
 }
 
 export interface GeneratedPost {

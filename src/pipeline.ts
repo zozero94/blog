@@ -127,7 +127,9 @@ async function run() {
         topicResult.config,
         topicResult.mainTopicTitle,
         topicResult.crossSources,
-        publicData
+        publicData,
+        verifiedUrl,
+        officialSource.officialSiteName || '공인 포털'
       );
       initialPost.verifiedLinks = [verifiedOfficialLink];
       console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);

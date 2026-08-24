@@ -8,7 +8,9 @@ export async function generateSingleTopicPost(
   config: CategoryConfig,
   mainTopicTitle: string,
   crossSources: NewsItem[],
-  publicData: PublicFactData | null
+  publicData: PublicFactData | null,
+  officialPortalUrl: string = 'https://www.data.go.kr',
+  officialPortalName: string = '대한민국 공식 포털'
 ): Promise<GeneratedPost> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -99,13 +101,13 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
        <strong style="color: #1e40af; font-size: 15px;">💡 3줄 핵심 요약</strong>
        <ul style="margin: 8px 0 0 0; padding-left: 18px; font-size: 14.5px; color: #1e293b;">...</ul>
      </div>
-   - **🏛️ 대한민국 공식 정부/공공기관 직통 바로가기 배너 카드 (필수 삽입)**:
+   - **🏛️ 공식 포털 직통 바로가기 배너 카드 (필수 삽입)**:
      <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px 18px; margin: 20px 0; display: flex; align-items: center; justify-content: space-between;">
        <div>
-         <strong style="color: #0f172a; font-size: 14px;">🏛️ 공식 출처 및 직통 신청 포털</strong>
-         <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #64748b;">공인된 정부/공공기관 공식 홈페이지에서 세부 정보 및 조회를 진행하세요.</p>
+         <strong style="color: #0f172a; font-size: 14px;">🏛️ ${officialPortalName} 직통 바로가기</strong>
+         <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #64748b;">공인된 공식 홈페이지에서 세부 정보 및 조회를 진행하세요.</p>
        </div>
-       <a href="https://www.data.go.kr" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="display: inline-block; background: #1e293b; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap;">공식 포털 바로가기 &rarr;</a>
+       <a href="${officialPortalUrl}" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="display: inline-block; background: #1e293b; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap;">공식 포털 바로가기 &rarr;</a>
      </div>
    - **구성**:
      ① 도입부: 문제 제기 + 3줄 핵심 요약 박스 + 🏛️ [공식 포털 직통 배너]
