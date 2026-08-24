@@ -104,13 +104,28 @@ async function run() {
 
   // [4단계] 13인 멀티 전문가 종합 80점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
   console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 80점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
-  const { finalPost, reviewSummary, roundsExecuted } = await executeTwoRoundReviewLoop(
+  const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
     geminiApiKey,
     initialPost,
     publicData,
     8.0, // 100점 만점 기준 80점 통과 기준
-    5    // 최대 5회 반복
+    4    // 최대 4회 반복
   );
+
+  // ★ [품질 방어선] 80점 미만 시 블로거 등록 및 발행 승인 원천 차단 (반려 처리)
+  if (!passed) {
+    console.error(`\n🚫 [1호점 품질 미달] 13인 종합 점수(${finalScore}점)가 80점에 미달하여 발행을 중단(반려)합니다.`);
+    const telegramClient = new TelegramClient(telegramBotToken, telegramChatId);
+    await telegramClient.sendMessage(
+      `🚫 <b>[금융 1호점] 원고 품질 미달 자동 반려</b>\n\n` +
+      `📌 <b>주제:</b> ${topicResult.mainTopicTitle}\n` +
+      `📝 <b>제목:</b> ${finalPost.title}\n` +
+      `📊 <b>13인 감수 최종 평점:</b> <b>${finalScore}점</b> / 100점 (기준: 80점)\n\n` +
+      `⚠️ <b>반려 사유:</b> 13인의 금융 전문 감수단 심사에서 4라운드 동안 목표 점수(80점)를 달성하지 못하여 구글 블로그 등록 및 발행이 자동 중단(반려)되었습니다.\n\n` +
+      `🔍 <b>감수 이력:</b> ${reviewSummary}`
+    );
+    return;
+  }
 
   // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사
   console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');

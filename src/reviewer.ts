@@ -200,7 +200,7 @@ export async function executeIterativeReviewLoop(
   publicData: PublicFactData | null,
   targetScore: number = 8.0,
   maxRounds: number = 4
-): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number }> {
+): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number; passed: boolean; finalScore: number }> {
   console.log('\n================================================================');
   console.log(`🏛️ [1호점 13인 감수 엔진 가동] 최소 2회 + 80점(8.0/10) 돌파제 루프 시작`);
   console.log('================================================================');
@@ -261,8 +261,9 @@ export async function executeIterativeReviewLoop(
   );
   console.log(`🎖️ [최종 마스터 승인 완료] 1호점 수석 편집국장 발행 승인 도장 날인: "${masterPost.title}"`);
 
-  const summary = `13인 감수(${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join('->')} | Dev:${devAudit.averageDevScore}점) -> 최종 승인 ✅`;
-  return { finalPost: masterPost, reviewSummary: summary, roundsExecuted: scoreHistory.length };
+  let passed = currentScore >= targetScore && scoreHistory.length >= 2;
+  const summary = `13인 감수(${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join('->')} | Dev:${devAudit.averageDevScore}점) -> ${passed ? '최종 승인 ✅' : '품질 미달 ❌'}`;
+  return { finalPost: masterPost, reviewSummary: summary, roundsExecuted: scoreHistory.length, passed, finalScore: Math.round(currentScore * 10) };
 }
 
 /**
