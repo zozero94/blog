@@ -243,35 +243,35 @@ ${headlineList}
 }
 
 /**
- * 3. 선정된 단일 주제로 유사 보도 기사 최소 4건 이상 심층 교차 수집
+ * 3. 선정된 단일 주제로 유사 보도 기사 최소 4건 이상 심층 교차 수집 (병렬)
  */
 async function fetchRelatedCrossSources(keywords: string[], minSources = 4): Promise<NewsItem[]> {
   const items: NewsItem[] = [];
   const seen = new Set<string>();
 
-  for (const kw of keywords) {
-    const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ko&gl=KR&ceid=KR:ko`;
-    try {
-      const feed = await parser.parseURL(searchUrl);
-      if (feed.items) {
-        for (const it of feed.items) {
-          if (!it.title) continue;
-          const clean = it.title.replace(/\s*-[^-]+$/, '').trim();
-          if (seen.has(clean)) continue;
-          seen.add(clean);
+  const feeds = await Promise.allSettled(
+    keywords.map((kw) =>
+      parser.parseURL(`https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ko&gl=KR&ceid=KR:ko`)
+    )
+  );
 
-          items.push({
-            title: clean,
-            link: it.link || '',
-            pubDate: it.pubDate,
-            contentSnippet: it.contentSnippet || it.content || '',
-            source: it.creator || it.author || '뉴스 출처',
-          });
-          if (items.length >= minSources) break;
-        }
+  for (const res of feeds) {
+    if (res.status === 'fulfilled' && res.value.items) {
+      for (const it of res.value.items) {
+        if (!it.title) continue;
+        const clean = it.title.replace(/\s*-[^-]+$/, '').trim();
+        if (seen.has(clean)) continue;
+        seen.add(clean);
+
+        items.push({
+          title: clean,
+          link: it.link || '',
+          pubDate: it.pubDate,
+          contentSnippet: it.contentSnippet || it.content || '',
+          source: it.creator || it.author || '뉴스 출처',
+        });
+        if (items.length >= minSources) break;
       }
-    } catch (e) {
-      // ignore
     }
     if (items.length >= minSources) break;
   }

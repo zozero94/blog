@@ -37,7 +37,7 @@ function getCategoryFromArgs(): BlogCategory {
 }
 
 function escapeHtml(text: string): string {
-  return text
+  return (text || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -89,94 +89,96 @@ async function run() {
 
   for (let candidateIdx = 0; candidateIdx < candidateTopics.length; candidateIdx++) {
     const topicResult = candidateTopics[candidateIdx];
-    console.log(`\n================================================================`);
-    console.log(`🎯 [후보 ${candidateIdx + 1}/${candidateTopics.length}] 금융/경제 탐구 시작: "${topicResult.mainTopicTitle}"`);
-    console.log(`   - 검색 키워드: ${topicResult.searchKeywords.join(', ')}`);
-    console.log(`   - 교차 검증 소스: ${topicResult.crossSources.length}건 확보`);
-    console.log(`================================================================`);
+    try {
+      console.log(`\n================================================================`);
+      console.log(`🎯 [후보 ${candidateIdx + 1}/${candidateTopics.length}] 금융/경제 탐구 시작: "${topicResult.mainTopicTitle}"`);
+      console.log(`   - 검색 키워드: ${topicResult.searchKeywords.join(', ')}`);
+      console.log(`   - 교차 검증 소스: ${topicResult.crossSources.length}건 확보`);
+      console.log(`================================================================`);
 
-    // [2단계] 공공기관 공식 데이터 및 공식 직통 포털 멀티모달(DOM+Vision) 검증
-    console.log('\n[2/7] 🏛️ 공공기관 공식 팩트체크 데이터 및 공식 직통 포털 멀티모달 검증');
-    const publicData = await fetchPublicDataForCategory(category, {
-      ecosKey,
-      dataGoKrKey,
-      dartKey,
-    });
+      // [2단계] 공공기관 공식 데이터 및 공식 직통 포털 멀티모달(DOM+Vision) 검증
+      console.log('\n[2/7] 🏛️ 공공기관 공식 팩트체크 데이터 및 공식 직통 포털 멀티모달 검증');
+      const publicData = await fetchPublicDataForCategory(category, {
+        ecosKey,
+        dataGoKrKey,
+        dartKey,
+      });
 
-    const officialSource = await findOfficialFinancialSourceUrl(geminiApiKey, topicResult.mainTopicTitle, category);
-    console.log(`   - 🏛️ 공식 인증 포털: "${officialSource.officialSiteName}" (${officialSource.officialUrl})`);
+      const officialSource = await findOfficialFinancialSourceUrl(geminiApiKey, topicResult.mainTopicTitle, category);
+      console.log(`   - 🏛️ 공식 인증 포털: "${officialSource.officialSiteName}" (${officialSource.officialUrl})`);
 
-    const verifiedOfficialLink = await verifyUrlAndCaptureScreenshot(
-      geminiApiKey,
-      officialSource.officialUrl,
-      topicResult.mainTopicTitle,
-      'official'
-    );
+      const verifiedOfficialLink = await verifyUrlAndCaptureScreenshot(
+        geminiApiKey,
+        officialSource.officialUrl,
+        topicResult.mainTopicTitle,
+        'official'
+      );
 
-    // [3단계] AI 기반 1차 단일 주제 초안 원고 작성
-    console.log('\n[3/7] 🤖 AI 기반 1차 단일 주제 초안 원고 작성');
-    const initialPost = await generateSingleTopicPost(
-      geminiApiKey,
-      topicResult.config,
-      topicResult.mainTopicTitle,
-      topicResult.crossSources,
-      publicData
-    );
-    initialPost.verifiedLinks = [verifiedOfficialLink];
-    console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
+      // [3단계] AI 기반 1차 단일 주제 초안 원고 작성
+      console.log('\n[3/7] 🤖 AI 기반 1차 단일 주제 초안 원고 작성');
+      const initialPost = await generateSingleTopicPost(
+        geminiApiKey,
+        topicResult.config,
+        topicResult.mainTopicTitle,
+        topicResult.crossSources,
+        publicData
+      );
+      initialPost.verifiedLinks = [verifiedOfficialLink];
+      console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-    // [4단계] 13인 멀티 전문가 종합 80점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
-    console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 80점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
-    const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
-      geminiApiKey,
-      initialPost,
-      publicData,
-      8.0, // 80점 기준
-      4    // 최대 4회 반복
-    );
+      // [4단계] 13인 멀티 전문가 종합 80점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
+      console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 80점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
+      const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
+        geminiApiKey,
+        initialPost,
+        publicData,
+        8.0, // 80점 기준
+        4    // 최대 4회 반복
+      );
 
-    // ★ [품질 방어선] 80점 미만 시 차순위 주제로 자동 전환 & 재탐구
-    if (!passed) {
-      console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 13인 종합 점수(${finalScore}점)가 80점에 미달!`);
-      const nextCandidate = candidateTopics[candidateIdx + 1];
+      // ★ [품질 방어선] 80점 미만 시 차순위 주제로 자동 전환 & 재탐구
+      if (!passed) {
+        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 13인 종합 점수(${finalScore}점)가 80점에 미달!`);
+        const nextCandidate = candidateTopics[candidateIdx + 1];
 
-      if (nextCandidate) {
-        await telegramClient.sendMessage(
-          `⚠️ <b>[금융 1호점] 원고 반려 ➔ 차순위 주제 자동 전환</b>\n\n` +
-          `❌ <b>반려 주제:</b> ${topicResult.mainTopicTitle} (${finalScore}점 / 기준: 80점)\n` +
-          `🔄 <b>감수 이력:</b> ${reviewSummary}\n\n` +
-          `🚀 <b>자동 조치:</b> 80점을 넘지 못해 즉시 차순위 경제 후보 [<b>${nextCandidate.mainTopicTitle}</b>] 로 전환하여 고품질 원고 재탐구를 시작합니다!`
-        );
-      } else {
-        await telegramClient.sendMessage(
-          `🚫 <b>[금융 1호점] 전체 후보 품질 기준 미달</b>\n\n` +
-          `수집된 모든 경제/부동산 후보가 80점 기준을 달성하지 못하여 포스팅 발행을 안전하게 중단했습니다.`
-        );
+        if (nextCandidate) {
+          await telegramClient.sendMessage(
+            `⚠️ <b>[금융 1호점] 원고 반려 ➔ 차순위 주제 자동 전환</b>\n\n` +
+            `❌ <b>반려 주제:</b> ${escapeHtml(topicResult.mainTopicTitle)} (${finalScore}점 / 기준: 80점)\n` +
+            `🔄 <b>감수 이력:</b> ${escapeHtml(reviewSummary)}\n\n` +
+            `🚀 <b>자동 조치:</b> 80점을 넘지 못해 즉시 차순위 경제 후보 [<b>${escapeHtml(nextCandidate.mainTopicTitle)}</b>] 로 전환하여 고품질 원고 재탐구를 시작합니다!`
+          );
+        } else {
+          await telegramClient.sendMessage(
+            `🚫 <b>[금융 1호점] 전체 후보 품질 기준 미달</b>\n\n` +
+            `수집된 모든 경제/부동산 후보가 80점 기준을 달성하지 못하여 포스팅 발행을 안전하게 중단했습니다.`
+          );
+        }
+        continue; // 다음 후보로 넘어가서 파이프라인 재실행!
       }
-      continue; // 다음 후보로 넘어가서 파이프라인 재실행!
-    }
 
-    // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사
-    console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');
-    const codeReviewResult = await executeAutomatedCodeReview(geminiApiKey, finalPost, 'https://zozero94.com');
-    console.log(`📊 5대 Code-Review 종합 평점: ${codeReviewResult.averageScore} / 10점 (${codeReviewResult.passed ? '심사 통과 ✅' : '보완 필요 ⚠️'})`);
+      // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사
+      console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');
+      const codeReviewResult = await executeAutomatedCodeReview(geminiApiKey, finalPost, 'https://zozero94.com');
+      console.log(`📊 5대 Code-Review 종합 평점: ${codeReviewResult.averageScore} / 10점 (${codeReviewResult.passed ? '심사 통과 ✅' : '보완 필요 ⚠️'})`);
 
-    // 링크 무결성 정제 및 WAF/보안 속성 부여
-    finalPost.htmlContent = auditAndFixFinanceHtmlLinks(finalPost.htmlContent, {
-      officialUrl: officialSource.officialUrl,
-    });
+      // 링크 무결성 정제 및 WAF/보안 속성 부여
+      finalPost.htmlContent = auditAndFixFinanceHtmlLinks(finalPost.htmlContent, {
+        officialUrl: officialSource.officialUrl,
+        coupang: `https://www.coupang.com/np/search?q=${encodeURIComponent(topicResult.searchKeywords[0] || topicResult.config.name)}`,
+      });
 
-    // [6단계] Google Blogger 임시글(Draft) 자동 등록
-    console.log('\n[6/7] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록');
-    const bloggerPost = await bloggerClient.createDraftPost(finalPost);
-    console.log(`✅ Google Blogger 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
+      // [6단계] Google Blogger 임시글(Draft) 자동 등록
+      console.log('\n[6/7] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록');
+      const bloggerPost = await bloggerClient.createDraftPost(finalPost);
+      console.log(`✅ Google Blogger 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
 
-    // [7단계] 텔레그램 승인 알림 발송
-    console.log('\n[7/7] 📱 텔레그램 승인 알림 발송');
-    const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
+      // [7단계] 텔레그램 승인 알림 발송
+      console.log('\n[7/7] 📱 텔레그램 승인 알림 발송');
+      const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
 📱 <b>구글 블로그:</b> <a href="${bloggerPost.url}">${bloggerPost.url}</a>`;
 
-    const messageText = `📢 <b>[인사이트 리서치] ${topicResult.config.name} 포스팅 승인 요청</b>
+      const messageText = `📢 <b>[인사이트 리서치] ${escapeHtml(topicResult.config.name)} 포스팅 승인 요청</b>
 
 📝 <b>제목:</b> ${escapeHtml(finalPost.title)}
 
@@ -191,20 +193,26 @@ ${linkText}
 
 아래 버튼을 누르면 <b>즉시 공식 발행</b>됩니다:`;
 
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          { text: '✅ 즉시 정식 발행', callback_data: `publish:${bloggerPost.id}` },
-          { text: '❌ 임시글 삭제', callback_data: `delete:${bloggerPost.id}` },
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: '✅ 즉시 정식 발행', callback_data: `publish:${bloggerBlogId}:${bloggerPost.id}` },
+            { text: '❌ 임시글 삭제', callback_data: `delete:${bloggerBlogId}:${bloggerPost.id}` },
+          ],
         ],
-      ],
-    };
+      };
 
-    const { message_id } = await telegramClient.sendMessageWithMarkup(messageText, replyMarkup);
-    console.log(`✅ 텔레그램 승인 알림 전송 완료! (Message ID: ${message_id})`);
+      const { message_id } = await telegramClient.sendMessageWithMarkup(messageText, replyMarkup);
+      console.log(`✅ 텔레그램 승인 알림 전송 완료! (Message ID: ${message_id})`);
 
-    publishedSuccess = true;
-    break; // 합격하여 발행 완료되었으므로 종료!
+      publishedSuccess = true;
+      break; // 합격하여 발행 완료되었으므로 종료!
+    } catch (candidateError: any) {
+      console.error(`\n❌ [1호점 후보 ${candidateIdx + 1} 처리 중 오류 발생]:`, candidateError);
+      if (candidateIdx < candidateTopics.length - 1) {
+        console.log(`🔄 다음 경제 후보로 자동 전환합니다...`);
+      }
+    }
   }
 
   if (publishedSuccess) {
@@ -213,11 +221,11 @@ ${linkText}
     console.log('📱 텔레그램에서 검토 후 [✅ 즉시 정식 발행] 버튼을 눌러주세요.');
     console.log('================================================================');
   } else {
-    console.log('\n⚠️ [1호점 파이프라인 종료] 기준(80점)을 만족하는 후보가 없어 안전하게 중단되었습니다.\n');
+    console.log('\n⚠️ [1호점 파이프라인 종료] 기준(80점)을 만족하는 유효 원고가 없어 안전하게 종료되었습니다.\n');
   }
 }
 
 run().catch((err) => {
-  console.error('\n❌ [Pipeline Error] 실행 중 치명적 오류 발생:', err);
+  console.error('\n❌ [Pipeline Critical Error] 치명적 오류 발생:', err);
   process.exit(1);
 });

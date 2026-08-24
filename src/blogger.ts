@@ -15,6 +15,8 @@ export class BloggerClient {
   private clientId: string;
   private clientSecret: string;
   private refreshToken: string;
+  private cachedAccessToken: string | null = null;
+  private tokenExpiresAt: number = 0;
 
   constructor(blogId: string, clientId: string, clientSecret: string, refreshToken: string) {
     this.blogId = blogId;
@@ -24,9 +26,14 @@ export class BloggerClient {
   }
 
   /**
-   * Refresh Token으로 새로운 Access Token 발급
+   * Refresh Token으로 Access Token 발급 및 메모리 캐싱
    */
   async getAccessToken(): Promise<string> {
+    const now = Date.now();
+    if (this.cachedAccessToken && this.tokenExpiresAt > now + 60000) {
+      return this.cachedAccessToken;
+    }
+
     const tokenUrl = 'https://oauth2.googleapis.com/token';
     const body = new URLSearchParams({
       client_id: this.clientId,
@@ -47,7 +54,9 @@ export class BloggerClient {
     }
 
     const data = await res.json();
-    return data.access_token;
+    this.cachedAccessToken = data.access_token;
+    this.tokenExpiresAt = now + (data.expires_in || 3600) * 1000;
+    return this.cachedAccessToken!;
   }
 
   /**

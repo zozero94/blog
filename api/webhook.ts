@@ -31,9 +31,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // =========================================================================
     const callbackQuery = update?.callback_query;
     if (callbackQuery) {
+      if (callbackQuery.id) {
+        await fetch(`https://api.telegram.org/bot${telegramBotToken}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: callbackQuery.id, text: '요청을 처리 중입니다...' }),
+        }).catch(() => {});
+      }
+
       const callbackData = callbackQuery.data;
       const parts = callbackData.split(':');
       const action = parts[0];
+      const messageId = callbackQuery.message?.message_id;
+      const senderChatId = callbackQuery.message?.chat?.id?.toString() || telegramChatId;
       
       let targetBlogId = defaultBloggerBlogId;
       let targetPostId = '';

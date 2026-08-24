@@ -1,16 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
-import { GeneratedPost } from './types.js';
+import { GeneratedPost, AgentFeedback } from './types.js';
 import { PublicFactData } from './public-data.js';
 import { generateContentWithFallback, safeJsonParse, extractCleanPostFromRawText } from './model-resolver.js';
 import { auditEngineeringAndArchitecture } from './system-auditor.js';
-
-export interface AgentFeedback {
-  agentName: string;
-  role: string;
-  score: number; // 10점 만점
-  strengths: string;
-  improvements: string;
-}
 
 export const REVIEWER_AGENTS = [
   { id: 'beginner', name: '초심자 독자', role: '난해한 금융/부동산 용어 해설, 쉬운 비유 및 친절한 설명 검증' },
@@ -77,7 +69,7 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
   {
     "agentName": "전문가 이름",
     "role": "역할",
-    "score": 8,
+    "score": 7,
     "strengths": "원고에서 훌륭한 점",
     "improvements": "구체적인 보강 및 수정 지시사항"
   }, ... (총 13개)
@@ -96,12 +88,12 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
     const validFeedbacks = parsed.length > 0 ? parsed : REVIEWER_AGENTS.map((a) => ({
       agentName: a.name,
       role: a.role,
-      score: 8,
+      score: 6,
       strengths: '기본적인 분석 흐름이 충실함',
       improvements: '모바일 가독성 및 자산 시뮬레이션 수치 보강 필요',
     }));
 
-    const totalScore = validFeedbacks.reduce((acc, f) => acc + (f.score || 7), 0);
+    const totalScore = validFeedbacks.reduce((acc, f) => acc + (f.score || 6), 0);
     const averageScore = Number((totalScore / validFeedbacks.length).toFixed(1));
 
     return { feedbacks: validFeedbacks, averageScore };
@@ -110,11 +102,11 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
       feedbacks: REVIEWER_AGENTS.map((a) => ({
         agentName: a.name,
         role: a.role,
-        score: 8,
-        strengths: '기본 흐름 양호',
-        improvements: '모바일 가독성 개선 필요',
+        score: 6,
+        strengths: '기본 흐름 분석 중',
+        improvements: '모바일 가독성 및 팩트 재검증 필요',
       })),
-      averageScore: 8.0,
+      averageScore: 6.0,
     };
   }
 }
@@ -151,7 +143,7 @@ export async function rewritePostWithFeedback(
 {
   "title": "클릭률을 극대화하는 매력적인 SEO 제목",
   "summary": "3줄 핵심 요약",
-  "content": "<p>완성된 고품질 반응형 HTML 본문...</p>",
+  "htmlContent": "<p>완성된 고품질 반응형 HTML 본문...</p>",
   "categories": ["카테고리"],
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
 }`;

@@ -112,8 +112,6 @@ export async function verifyUrlAndCaptureScreenshot(
     status = response ? response.status() : 200;
     pageTitle = (await page.title()) || '';
 
-    await page.waitForTimeout(1000);
-
     domText = await page.evaluate(() => {
       return document.body ? document.body.innerText.replace(/\s+/g, ' ').slice(0, 1500) : '';
     });
@@ -121,15 +119,8 @@ export async function verifyUrlAndCaptureScreenshot(
     const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 85 });
     screenshotBase64 = screenshotBuffer.toString('base64');
     isHealthy = status >= 200 && status < 400;
-
-    await browser.close();
   } catch (browserError) {
     console.warn(`⚠️ [Verifier] Playwright 브라우저 캡처 실패, HTTP Fetch로 대체 검증:`, browserError);
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (_) {}
-    }
 
     try {
       const fetchRes = await fetch(targetUrl, {
@@ -137,6 +128,7 @@ export async function verifyUrlAndCaptureScreenshot(
           'User-Agent':
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
+        signal: AbortSignal.timeout(8000),
       });
       status = fetchRes.status;
       isHealthy = fetchRes.ok;
@@ -148,6 +140,12 @@ export async function verifyUrlAndCaptureScreenshot(
       status = 500;
       isHealthy = false;
       verificationNotes = 'URL 접근 실패 (네트워크 오류)';
+    }
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (_) {}
     }
   }
 
@@ -257,12 +255,24 @@ export function auditAndFixFinanceHtmlLinks(
   fixedHtml = fixedHtml.replace(/📸\s*\[이미지:[^\]]*\]/gi, '');
   fixedHtml = fixedHtml.replace(/<p[^>]*>[\s\S]*?(📸|사진 영역|이미지 영역)[\s\S]*?<\/p>/gi, '');
 
-  // 2. 쿠팡 링크 교정 및 referrerpolicy="no-referrer" 부여
-  if (validUrls.coupang) {
-    fixedHtml = fixedHtml.replace(/href=['"]https:\/\/(?:www|m)\.coupang\.com\/[^'"]*['"]/g, `href="${validUrls.coupang}"`);
+  // 2. 공식 직통 URL 치환 (존재 시)
+  if (validUrls.officialUrl) {
+    fixedHtml = fixedHtml.replace(/href=['"]https?:\/\/(?:www\.)?(?:data\.go\.kr|applyhome|rt\.molit|fine\.fss|ecos\.bok)[^'"]*['"]/gi, `href="${validUrls.officialUrl}"`);
   }
 
-  // 3. 모든 외부 링크에 target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" 부여
+  // 3. 쿠팡 링크 교정 및 referrerpolicy="no-referrer" 부여
+  if (validUrls.coupang) {
+    fixedHtml = fixedHtml.replace(
+      /href=['"]https:\/\/(?:(?:www|m)\.coupang\.com|link\.coupang\.com|coupa\.ng)\/[^'"]*['"]/gi,
+      `href="${validUrls.coupang}"`
+    );
+  }
+
+  // 4. XSS 인라인 이벤트 핸들러 및 javascript: 차단
+  fixedHtml = fixedHtml.replace(/\s*on\w+=["'][^"']*["']/gi, '');
+  fixedHtml = fixedHtml.replace(/href=["']javascript:[^"']*["']/gi, 'href="#"');
+
+  // 5. 모든 외부 링크에 target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" 부여
   fixedHtml = fixedHtml.replace(/<a\s+([^>]*?)>/gi, (match, attrs) => {
     let cleanAttrs = attrs;
     cleanAttrs = cleanAttrs.replace(/\s*(target|rel|referrerpolicy)=['"][^'"]*['"]/gi, '');
