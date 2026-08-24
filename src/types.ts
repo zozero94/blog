@@ -17,6 +17,19 @@ export interface NewsItem {
   source?: string;
 }
 
+export interface VerifiedLink {
+  originalUrl: string;
+  finalUrl: string;
+  status: number;
+  isHealthy: boolean;
+  pageTitle: string;
+  screenshotBase64?: string;
+  isContentMatched: boolean;
+  relevanceScore?: number; // 0~100점
+  suggestedCorrection?: string;
+  verificationNotes: string;
+}
+
 export interface GeneratedPost {
   title: string;
   summary: string;
@@ -24,6 +37,15 @@ export interface GeneratedPost {
   tags: string[];
   categories: string[];
   metaDescription: string;
+  verifiedLinks?: VerifiedLink[];
+}
+
+export interface AgentFeedback {
+  agentName: string;
+  role: string;
+  score: number;
+  strengths: string;
+  improvements: string;
 }
 
 export interface WordPressPostResponse {

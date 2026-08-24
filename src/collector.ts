@@ -184,6 +184,65 @@ ${headlineList}
 }
 
 /**
+ * 2. 100개 풀에서 중복 없는 상위 N대 핵심 주제 동시 선별 (순차적 폴백용)
+ */
+export async function selectHotTopicCandidates(
+  apiKey: string,
+  categoryConfig: CategoryConfig,
+  headlines: NewsItem[],
+  pastTitles: string[] = [],
+  count: number = 3
+): Promise<{ topic: string; keywords: string[] }[]> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const pastListText = pastTitles.length > 0
+    ? pastTitles.map((t, idx) => `${idx + 1}. ${t}`).join('\n')
+    : '(과거 발행 이력 없음)';
+
+  const headlineList = headlines
+    .slice(0, 100)
+    .map((h, idx) => `${idx + 1}. ${h.title}`)
+    .join('\n');
+
+  const prompt = `당신은 ${categoryConfig.name} 분야 최고의 수석 에디터입니다.
+아래 목록은 최근 블로그에 이미 발행된 글 제목들입니다:
+${pastListText}
+
+위 과거 글들과 **소재, 핵심 키워드, 주요 논점이 40% 이상 겹치는 이슈는 엄격히 탈락**시키세요!
+100개의 방대한 후보 풀 중에서 아직 다루지 않은 가장 시의성 높고 독자 클릭률과 체류시간이 폭발할 새로운 상위 ${count}개 주제를 선별하세요.
+
+[100개 최신 헤드라인 후보 풀]
+${headlineList}
+
+반드시 다음 JSON 배열 포맷으로만 응답하세요 (총 ${count}개):
+[
+  {
+    "topic": "기존 글과 중복되지 않는 새로운 핵심 이슈 명확한 주제명 1",
+    "keywords": ["심층교차검색용_키워드1", "심층교차검색용_키워드2", "심층교차검색용_키워드3"]
+  }, ...
+]`;
+
+  try {
+    const response = await generateContentWithFallback(ai, {
+      contents: prompt,
+      config: { responseMimeType: 'application/json', temperature: 0.3 },
+    });
+    const parsed = safeJsonParse<any[]>(response.text || '[]', []);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((item, idx) => ({
+        topic: item.topic || headlines[idx]?.title || `${categoryConfig.name} 핵심 이슈 ${idx + 1}`,
+        keywords: Array.isArray(item.keywords) && item.keywords.length > 0 ? item.keywords : categoryConfig.searchKeywords.slice(0, 3),
+      }));
+    }
+  } catch (err) {
+    console.warn('[TopicSelector] AI 다중 주제 선정 오류, 단일 선정 폴백:', err);
+  }
+
+  const single = await selectSingleHotTopic(apiKey, categoryConfig, headlines, pastTitles);
+  return [single];
+}
+
+/**
  * 3. 선정된 단일 주제로 유사 보도 기사 최소 4건 이상 심층 교차 수집
  */
 async function fetchRelatedCrossSources(keywords: string[], minSources = 4): Promise<NewsItem[]> {
@@ -220,43 +279,53 @@ async function fetchRelatedCrossSources(keywords: string[], minSources = 4): Pro
 }
 
 /**
- * 전체 수집 파이프라인: 100개 풀 수집 + 과거 이력 20건 대조 중복 배제 + 3단계 교차 검증 소스 확보
+ * 상위 N대 후보군 동시 수집 파이프라인 (자동 폴백용)
+ */
+export async function collectMultipleTopicCandidates(
+  geminiApiKey: string,
+  category: BlogCategory,
+  pastTitles: string[] = [],
+  count: number = 3
+): Promise<SingleTopicResult[]> {
+  const config = CATEGORY_CONFIGS[category];
+
+  console.log(`   [1-1] ${config.name} 8대 세부 도메인에서 100개 헤드라인 풀 병렬 수집 중...`);
+  const initialHeadlines = await fetchHeadlines(config.rssUrls, 100);
+  console.log(`   ✅ 유효 헤드라인 총 ${initialHeadlines.length}건 확보 완료`);
+
+  console.log(`   [1-2] AI 기반 중복 배제 & 상위 ${count}대 핵심 이슈 선별 중... (기발행 글 ${pastTitles.length}건 대조)`);
+  const candidates = await selectHotTopicCandidates(geminiApiKey, config, initialHeadlines, pastTitles, count);
+
+  const results: SingleTopicResult[] = [];
+  for (const sel of candidates) {
+    const crossSources = await fetchRelatedCrossSources(sel.keywords, 4);
+    if (crossSources.length < 3) {
+      for (const h of initialHeadlines) {
+        if (!crossSources.some((c) => c.title === h.title)) {
+          crossSources.push(h);
+        }
+        if (crossSources.length >= 4) break;
+      }
+    }
+    results.push({
+      config,
+      mainTopicTitle: sel.topic,
+      searchKeywords: sel.keywords,
+      crossSources,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * 전체 수집 파이프라인 (단일 1위 반환 호환용)
  */
 export async function collectSingleTopicPipeline(
   geminiApiKey: string,
   category: BlogCategory,
   pastTitles: string[] = []
 ): Promise<SingleTopicResult> {
-  const config = CATEGORY_CONFIGS[category];
-
-  // 1. 100개 이상의 방대한 최신 헤드라인 풀 병렬 수집
-  console.log(`   [1-1] ${config.name} 8대 세부 도메인에서 100개 헤드라인 풀 병렬 수집 중...`);
-  const initialHeadlines = await fetchHeadlines(config.rssUrls, 100);
-  console.log(`   ✅ 유효 헤드라인 총 ${initialHeadlines.length}건 확보 완료`);
-
-  // 2. 100개 풀에서 과거 글 20건과 절대 안 겹치는 단 1개의 새로운 핫이슈 선정
-  console.log(`   [1-2] AI 기반 중복 배제 & 새로운 1등 핵심 이슈 선정 중... (기발행 글 ${pastTitles.length}건 대조)`);
-  const selected = await selectSingleHotTopic(geminiApiKey, config, initialHeadlines, pastTitles);
-  console.log(`   🎯 100개 풀에서 선정된 새로운 단일 주제: "${selected.topic}"`);
-  console.log(`   🔑 심층 교차검증 키워드: ${selected.keywords.join(', ')}`);
-
-  // 3. 선정된 주제에 대한 4개 이상 언론사 교차 검증 기사 심층 수집
-  console.log(`   [1-3] 선정된 주제에 대한 4개 이상 유사 보도 소스 교차 수집 중...`);
-  const crossSources = await fetchRelatedCrossSources(selected.keywords, 4);
-
-  if (crossSources.length < 3) {
-    for (const h of initialHeadlines) {
-      if (!crossSources.some((c) => c.title === h.title)) {
-        crossSources.push(h);
-      }
-      if (crossSources.length >= 4) break;
-    }
-  }
-
-  return {
-    config,
-    mainTopicTitle: selected.topic,
-    searchKeywords: selected.keywords,
-    crossSources,
-  };
+  const candidates = await collectMultipleTopicCandidates(geminiApiKey, category, pastTitles, 1);
+  return candidates[0];
 }
