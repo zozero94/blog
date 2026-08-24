@@ -62,7 +62,7 @@ ${agentDescriptions}
 카테고리: ${post.categories.join(', ')}
 태그: ${post.tags.join(', ')}
 본문(HTML):
-${post.content.slice(0, 4000)}...
+${post.htmlContent.slice(0, 4000)}...
 
 [원고 작성 시 반영된 공공데이터 팩트]
 ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
@@ -163,7 +163,7 @@ export async function rewritePostWithFeedback(
 ${feedbackSummary}
 
 [기존 본문]:
-${currentPost.content}
+${currentPost.htmlContent}
 
 위 13인의 지적 사항을 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
 
@@ -242,7 +242,7 @@ export async function executeIterativeReviewLoop(
   // =========================================================================
   console.log('\n💻 [4.8단계] 5인의 개발/아키텍처 집중형 엔지니어링 에이전트 시스템 감사 가동...');
   const devAudit = auditEngineeringAndArchitecture(currentPost);
-  currentPost.content = devAudit.sanitizedHtml;
+  currentPost.htmlContent = devAudit.sanitizedHtml;
   console.log(`🛠️ 개발/아키텍처 종합 평점: ${devAudit.averageDevScore} / 10점 (${devAudit.overallPassed ? '전원 통과' : '경미한 수정'})`);
   devAudit.feedbacks.forEach((f) => {
     console.log(`   - [${f.agentName}] (${f.score}점): ${f.recommendations.join(', ')}`);
@@ -290,7 +290,7 @@ export async function executeFinanceChiefEditorFinalInspection(
 {
   "title": "편집국장이 최종 확정한 마스터 헤드라인",
   "summary": "3줄 핵심 요약",
-  "content": "<p>완성된 최종 마스터 HTML 본문...</p>",
+  "htmlContent": "<p>완성된 최종 마스터 HTML 본문...</p>",
   "categories": ["카테고리"],
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
 }`;
@@ -301,7 +301,7 @@ export async function executeFinanceChiefEditorFinalInspection(
 [카테고리]: ${post.categories.join(', ')}
 
 [본문]:
-${post.content}
+${post.htmlContent}
 
 위 원고를 총괄 편집국장 관점에서 기술적/문맥적 결함을 최종 판단하여 완벽한 마스터본으로 승인해 주세요.`;
 

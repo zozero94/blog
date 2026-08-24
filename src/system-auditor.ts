@@ -33,7 +33,7 @@ export function auditEngineeringAndArchitecture(
   post: GeneratedPost
 ): DevSystemAuditResult {
   const feedbacks: DevAuditFeedback[] = [];
-  let sanitizedHtml = post.content;
+  let sanitizedHtml = post.htmlContent;
 
   // 1. [dom_architect] HTML/DOM 및 닫는 태그 무결성 검사
   const openDivCount = (sanitizedHtml.match(/<div\b/gi) || []).length;
