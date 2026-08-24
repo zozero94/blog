@@ -92,14 +92,15 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
      </div>
    - **구성**:
      ① 도입부: 문제 제기 + 3줄 핵심 요약 박스 + 🏛️ [공식 포털 직통 배너]
-     ② 📌 [정부/공공기관 공식 팩트체크 박스]
+     ② 📌 [정부/공공기관 공식 팩트체크 박스] (해당시)
      ③ <h2> 1. 현상 분석: 왜 지금 이 이슈가 터져 나왔는가? (배경 및 원인)
      ④ <h2> 2. 시장 심리와 파급력: 내 자산과 통장에 미치는 실질적 영향
-     ⑤ <h2> 3. 실전 자산 시뮬레이션: 구체적 셈법 (대출 이자/세금 절감/수익률 정밀 계산표 Table 포함)
-     ⑥ <h2> 4. 맞춤형 3대 실천 행동 수칙 (초심자/실수요자/투자자별)
-     ⑦ <h2> 5. 가장 자주 묻는 FAQ 3선 (<dl> 또는 <strong>Q/A</strong> 형식)
-     ⑧ 결론: 최종 제언 및 1줄 요약
-     ⑨ 💡 [선택적 연관 도서/실전 준비물 카드] (★무조건 넣지 말고, 해당 금융/부동산 주제와 100% 직결되는 베스트셀러 경제 도서나 이사/실생활 꿀템이 명확한 경우에만 본문 맨 끝에 은은한 1줄 카드로 삽입):
+     ⑤ <h2> 3. 실전 자산 시뮬레이션: 구체적 셈법 (대출 이자/세금 절감/수익률 정밀 2단 계산표 Table 포함)
+     ⑥ <h2> 4. ⚠️ 반드시 알아야 할 치명적 리스크와 주의사항 (세금 추징 위험, 원금 손실, 중도 해지 패널티 등 1문단 필수 경고)
+     ⑦ <h2> 5. 맞춤형 3대 실천 행동 수칙 & 신청 3단계 동선 (초심자/실수요자/투자자별 + 실제 포털 클릭 경로 명시)
+     ⑧ <h2> 6. 가장 자주 묻는 FAQ 3선 (<dl> 또는 <strong>Q/A</strong> 형식)
+     ⑨ 결론: 최종 제언 및 1줄 요약
+     ⑩ 💡 [선택적 연관 도서/실전 준비물 카드] (★무조건 넣지 말고, 해당 금융/부동산 주제와 100% 직결되는 베스트셀러 경제 도서나 이사/실생활 꿀템이 명확한 경우에만 본문 맨 끝에 은은한 1줄 카드로 삽입):
         <div style="margin: 28px 0 10px 0; padding: 14px 18px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13.5px; color: #475569;">
           <span style="font-size: 15px;">📚</span> <strong style="color: #1e293b;">함께 보면 좋은 전문가 추천 자료:</strong>
           <p style="margin: 6px 0 0 0;"><a href="https://www.coupang.com/np/search?q=[주제연관도서또는아이템명]" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="color: #2563eb; text-decoration: underline; font-weight: 600;">[해당 주제 필수 도서/준비물명] 최저가 및 세부 정보 확인하기 &rarr;</a></p>

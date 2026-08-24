@@ -102,7 +102,7 @@ async function run() {
         ecosKey,
         dataGoKrKey,
         dartKey,
-      });
+      }, topicResult.mainTopicTitle);
 
       const officialSource = await findOfficialFinancialSourceUrl(geminiApiKey, topicResult.mainTopicTitle, category);
       console.log(`   - 🏛️ 공식 인증 포털: "${officialSource.officialSiteName}" (${officialSource.officialUrl})`);
@@ -126,8 +126,8 @@ async function run() {
       initialPost.verifiedLinks = [verifiedOfficialLink];
       console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-      // [4단계] 13인 멀티 전문가 종합 75점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
-      console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 75점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
+      // [4단계] 18인 멀티 전문가 종합 75점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
+      console.log('\n[4/7] 🛡️ [자동 트리거] 18인 전문가 종합 75점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
       const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
         geminiApiKey,
         initialPost,

@@ -26,10 +26,36 @@ export const REVIEWER_AGENTS = [
     role: '원고에 언급된 환율, 금리, 실거래가 수치가 오늘 현재 실제 수치와 정확히 일치하는지 전수 대조하여 시점 불일치 적발' 
   },
   { id: 'viral', name: '바이럴/공유 평가자', role: '단톡방/커뮤니티 공유를 유도하는 킬러 인사이트 및 핵심 문장 검증' },
+  // ★ 신규 5대 실전 전문 에이전트 (18인 체제 완성)
+  { 
+    id: 'niche_tax_architect', 
+    name: '초밀착 세무 & 합법적 절세 설계관', 
+    role: '상속/증여세 면제 한도, 가족법인, 건보료 피부양자 자격 방어, 종소세 환급 등 고액 절세/방어 셈법 검증' 
+  },
+  { 
+    id: 'life_cycle_curator', 
+    name: '생애주기 맞춤 복지·지원금 큐레이터', 
+    role: '2030 청년, 3040 신혼/영끌, 5060 은퇴준비자 등 세대별 정부 지원금 및 우대 대출 연계성 검증' 
+  },
+  { 
+    id: 'global_macro_strategist', 
+    name: '글로벌 자산배분 & 대체투자 전략가', 
+    role: '미국 국채 10년물 금리, 엔화/달러 환율, 금(Gold)/원자재, 글로벌 빅테크 자산배분 관점 검증' 
+  },
+  { 
+    id: 'crisis_defense_counselor', 
+    name: '전세사기 & 금융 리스크 방어관', 
+    role: '역전세/깡통전세 탈출, HUG 보증금 반환 이행청구 실전 동선, 스트레스 DSR 대출 리스크 방어 매뉴얼 검증' 
+  },
+  { 
+    id: 'cashflow_pipeline_analyst', 
+    name: '파이프라인 & 월 현금흐름 분석가', 
+    role: '월배당 ETF, 채권 이자, 리츠, 연금 수령 등 월 100만~300만 원 패시브 인컴 구조 검증' 
+  },
 ];
 
 /**
- * 13인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
+ * 18인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
  */
 export async function evaluateWith12Agents(
   apiKey: string,
@@ -43,10 +69,10 @@ export async function evaluateWith12Agents(
     (a, i) => `${i + 1}. [${a.name}] (${a.role})`
   ).join('\n');
 
-  const prompt = `당신은 대한민국 최고 권위의 미디어/금융리서치 센터 13인 감수 위원회입니다.
-아래 작성된 블로그 원고(Round ${round} 버전)를 13인의 전문가 관점에서 엄격하게 리뷰하고 점수(1~10점)와 구체적 보완 지침을 작성하세요.
+  const prompt = `당신은 대한민국 최고 권위의 미디어/금융리서치 센터 18인 감수 위원회입니다.
+아래 작성된 블로그 원고(Round ${round} 버전)를 18인의 전문가 관점에서 엄격하게 리뷰하고 점수(1~10점)와 구체적 보완 지침을 작성하세요.
 
-[13인의 전문가 페르소나]
+[18인의 전문가 페르소나]
 ${agentDescriptions}
 
 [평가 대상 원고]
@@ -61,8 +87,9 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
 
 [채점 및 지침 작성 원칙]
 1. ★ **"반응형 웹 & 모바일 UX 아키텍트"**: 스마트폰에서 3초 이상 멈칫하지 않고 부드럽게 읽히는지, 긴 문단(5줄 이상)이 없는지, 표와 콜아웃 박스가 모바일 친화적인지 엄격 채점.
-2. ★ **"실시간 시장 지표 팩트체커"**: 원고의 수치/방향성이 최신 데이터와 일치하는지 팩트체크.
-3. ★ **더미 텍스트 배제**: [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 없어야 함.
+2. ★ **"초밀착 세무/절세 & 리스크 방어관"**: 무조건적인 장밋빛 전망은 감점! 세금 추징 위험이나 손실 가능성 등 치명적 리스크 경고가 있는지 확인.
+3. ★ **"자산 시뮬레이션 계산관"**: 독자가 바로 체감할 수 있는 구체적인 계산 비교표가 있는지 확인.
+4. ★ **더미 텍스트 배제**: [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 없어야 함.
 
 반드시 다음 JSON 배열 포맷으로만 응답하세요:
 [
@@ -72,7 +99,7 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
     "score": 7,
     "strengths": "원고에서 훌륭한 점",
     "improvements": "구체적인 보강 및 수정 지시사항"
-  }, ... (총 13개)
+  }, ... (총 18개)
 ]`;
 
   try {
@@ -112,7 +139,7 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
 }
 
 /**
- * 13인의 피드백을 반영하여 원고 전면 리라이팅
+ * 18인의 피드백을 반영하여 원고 전면 리라이팅
  */
 export async function rewritePostWithFeedback(
   apiKey: string,
@@ -131,10 +158,10 @@ export async function rewritePostWithFeedback(
     .join('\n\n');
 
   const systemInstruction = `당신은 대한민국 최고 수준의 금융/경제 수석 전문 에디터이자 콘텐츠 디렉터입니다.
-13인의 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 수용하여, 기존 원고를 최상급 프리미엄 반응형 칼럼으로 전면 리라이팅하세요.
+18인의 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 수용하여, 기존 원고를 최상급 프리미엄 반응형 칼럼으로 전면 리라이팅하세요.
 
 [리라이팅 핵심 필수 규칙]
-1. 13인의 지적사항 100% 반영: 각 전문가가 지시한 보완 사항을 본문에 자연스럽게 녹여내세요.
+1. 18인의 지적사항 100% 반영: 각 전문가가 지시한 보완 사항을 본문에 자연스럽게 녹여내세요.
 2. 모바일 반응형 완벽 최적화: 2~4문장 단위 문단 분리, 핵심 키워드 <strong> 강조, 둥근 콜아웃 박스, 가격/지표 비교표.
 3. 🚫 더미 요소 배제: [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 절대 작성하지 말 것.
 
@@ -150,14 +177,18 @@ export async function rewritePostWithFeedback(
 
   const prompt = `[현재 원고 제목]: ${currentPost.title}
 [카테고리]: ${currentPost.categories.join(', ')}
+[태그]: ${currentPost.tags.join(', ')}
 
-[13인의 전문가 상세 리뷰 및 보강 지침 (Round ${round})]:
-${feedbackSummary}
-
-[기존 본문]:
+[현재 본문 HTML]:
 ${currentPost.htmlContent}
 
-위 13인의 지적 사항을 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
+[공공데이터 팩트]:
+${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
+
+[18인의 감수단 상세 피드백]:
+${feedbackSummary}
+
+위 18인의 피드백을 모두 반영하여 더 정교하고 가치 있는 최종 리라이팅 원고를 작성하세요.`;
 
   try {
     const response = await generateContentWithFallback(ai, {
@@ -165,7 +196,7 @@ ${currentPost.htmlContent}
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
-        temperature: 0.7,
+        temperature: 0.4,
         maxOutputTokens: 8192,
       },
     });
@@ -177,8 +208,8 @@ ${currentPost.htmlContent}
       currentPost.categories[0] || '경제',
       currentPost.tags
     );
-  } catch (err) {
-    console.warn(`[Reviewer] 리라이팅 오류, 기존 포스트 유지:`, err);
+  } catch (e) {
+    console.error(`[Reviewer] Round ${round} 리라이팅 오류, 이전 원고 유지:`, e);
     return currentPost;
   }
 }
@@ -194,7 +225,7 @@ export async function executeIterativeReviewLoop(
   maxRounds: number = 4
 ): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number; passed: boolean; finalScore: number }> {
   console.log('\n================================================================');
-  console.log(`🏛️ [1호점 13인 감수 엔진 가동] 최소 2회 + 75점(7.5/10) 돌파제 루프 시작`);
+  console.log(`🏛️ [1호점 18인 감수 엔진 가동] 최소 2회 + 75점(7.5/10) 돌파제 루프 시작`);
   console.log('================================================================');
 
   let currentPost = initialPost;
@@ -203,14 +234,14 @@ export async function executeIterativeReviewLoop(
   const scoreHistory: number[] = [];
 
   for (let round = 1; round <= maxRounds; round++) {
-    console.log(`\n🔍 [Round ${round}/${maxRounds}] 13인의 금융/경제 전문가가 원고 정밀 평가 중...`);
+    console.log(`\n🔍 [Round ${round}/${maxRounds}] 18인의 금융/경제/세무/부동산 전문가가 원고 정밀 평가 중...`);
     const evalResult = await evaluateWith12Agents(apiKey, currentPost, publicData, round);
     currentScore = evalResult.averageScore;
     lastFeedbacks = evalResult.feedbacks;
     scoreHistory.push(currentScore);
 
     const scoreOutOf100 = Math.round(currentScore * 10);
-    console.log(`📊 [Round ${round} 채점 결과] 13인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
+    console.log(`📊 [Round ${round} 채점 결과] 18인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
 
     evalResult.feedbacks.slice(0, 3).forEach((f) => {
       console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
@@ -223,7 +254,7 @@ export async function executeIterativeReviewLoop(
     }
 
     if (round < maxRounds) {
-      console.log(`\n✍️ [Round ${round} 리라이팅] 13인 지적사항을 반영하여 전면 리라이팅 진행 중...`);
+      console.log(`\n✍️ [Round ${round} 리라이팅] 18인 지적사항을 반영하여 전면 리라이팅 진행 중...`);
       currentPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, round);
       console.log(`✅ [Round ${round} 리라이팅 완료]: "${currentPost.title}"`);
     }
@@ -243,19 +274,26 @@ export async function executeIterativeReviewLoop(
   // =========================================================================
   // ★ [메인 총괄 에이전트] 총괄 편집국장 최종 마스터 검수 및 발행 승인 단계
   // =========================================================================
-  console.log('\n👑 [메인 총괄 에이전트] 1호점 총괄 수석 에디터(편집국장) 최종 마스터 검수 및 수정 진행 중...');
+  console.log('\n👑 [메인 총괄 에이전트] 총괄 수석 에디터(편집국장) 최종 마스터 검수 및 폴리싱 가동...');
   const masterPost = await executeFinanceChiefEditorFinalInspection(
     apiKey,
     currentPost,
     publicData,
-    scoreHistory.map((s, i) => `R${i + 1}:${Math.round(s * 10)}점`).join(' -> '),
-    devAudit.technicalIssuesSummary
+    scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' ➔ '),
+    devAudit.feedbacks.map((f) => `[${f.agentName}] ${f.recommendations.join(', ')}`).join('\n')
   );
-  console.log(`🎖️ [최종 마스터 승인 완료] 1호점 수석 편집국장 발행 승인 도장 날인: "${masterPost.title}"`);
+  console.log(`🎖️ [최종 마스터 승인 완료] 수석 편집국장 최종 검수 완료: "${masterPost.title}"`);
 
-  let passed = currentScore >= targetScore && scoreHistory.length >= 2;
-  const summary = `13인 감수(${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join('->')} | Dev:${devAudit.averageDevScore}점) -> ${passed ? '최종 승인 ✅' : '품질 미달 ❌'}`;
-  return { finalPost: masterPost, reviewSummary: summary, roundsExecuted: scoreHistory.length, passed, finalScore: Math.round(currentScore * 10) };
+  const finalScore = Math.round(currentScore * 10);
+  const passed = currentScore >= targetScore;
+
+  return {
+    finalPost: masterPost,
+    reviewSummary: `${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' ➔ ')} | Dev:${devAudit.averageDevScore}점`,
+    roundsExecuted: scoreHistory.length,
+    passed,
+    finalScore,
+  };
 }
 
 /**
@@ -271,7 +309,7 @@ export async function executeFinanceChiefEditorFinalInspection(
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `당신은 대한민국 최고 권위의 금융/경제 리서치 총괄 편집국장(Editor-in-Chief Main Agent)입니다.
-13인의 금융 전문 감수 위원회와 5인의 개발/아키텍처 엔지니어링 에이전트가 올린 종합 평가 결과를 토대로, 최종 원고를 직접 판단하고 완성도 100%의 최종 마스터본으로 승인 및 리라이팅하세요.
+18인의 금융/세무/부동산 전문 감수 위원회와 5인의 개발/아키텍처 엔지니어링 에이전트가 올린 종합 평가 결과를 토대로, 최종 원고를 직접 판단하고 완성도 100%의 최종 마스터본으로 승인 및 리라이팅하세요.
 
 [편집국장 최종 마스터 검수 체크리스트]
 1. **신뢰성과 가독성의 밸런스**: 공공데이터 팩트와 자산 시뮬레이션 수치가 정확하며 초심자도 술술 읽히는가?
@@ -288,7 +326,7 @@ export async function executeFinanceChiefEditorFinalInspection(
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
 }`;
 
-  const prompt = `[13인 콘텐츠 감수 이력]: ${reviewHistory}
+  const prompt = `[18인 콘텐츠 감수 이력]: ${reviewHistory}
 [5인 개발/아키텍처 감사 보고]: ${devIssuesSummary || '기술적 이슈 없음 (전원 합격)'}
 [원고 제목]: ${post.title}
 [카테고리]: ${post.categories.join(', ')}
