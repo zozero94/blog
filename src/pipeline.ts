@@ -114,6 +114,12 @@ async function run() {
         'official'
       );
 
+      let verifiedUrl = officialSource.officialUrl;
+      if (!verifiedOfficialLink.isHealthy || !verifiedOfficialLink.isContentMatched || (verifiedOfficialLink.relevanceScore ?? 0) < 75) {
+        console.warn(`⚠️ [1호점 공식 링크 불일치/파킹 감지] "${officialSource.officialUrl}" (${verifiedOfficialLink.relevanceScore}점) -> 대한민국 공인 포털로 안전 치환!`);
+        verifiedUrl = 'https://www.data.go.kr';
+      }
+
       // [3단계] AI 기반 1차 단일 주제 초안 원고 작성
       console.log('\n[3/7] 🤖 AI 기반 1차 단일 주제 초안 원고 작성');
       const initialPost = await generateSingleTopicPost(

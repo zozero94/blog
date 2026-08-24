@@ -150,9 +150,20 @@ export async function verifyUrlAndCaptureScreenshot(
   }
 
   if (isHealthy) {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `당신은 대한민국 최고의 금융/공공 정책 및 웹 랜딩 시각 감리관(Visual Link Auditor)입니다.
+    // 1차 파킹/빈 페이지 검증
+    if (
+      domText.length < 30 ||
+      /lander|parking|buy this domain|domain is for sale|redirecting/i.test(domText) ||
+      /lander|parking/i.test(pageTitle)
+    ) {
+      isHealthy = false;
+      isContentMatched = false;
+      relevanceScore = 0;
+      verificationNotes = '파킹 도메인 또는 빈 리다이렉트 페이지 감지';
+    } else {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `당신은 대한민국 최고의 금융/공공 정책 및 웹 랜딩 시각 감리관(Visual Link Auditor)입니다.
 우리가 작성하려는 핵심 주제: "${expectedTopicKeyword}"
 검증 대상 URL: "${targetUrl}" (플랫폼: ${platformType})
 웹페이지 제목: "${pageTitle}"
@@ -160,9 +171,9 @@ export async function verifyUrlAndCaptureScreenshot(
 
 [정밀 시각 & 텍스트 검증 지침]
 첨부된 실제 웹페이지 스크린샷과 추출된 텍스트를 정밀 분석하여 다음을 판정하세요:
-1. **정상 랜딩 여부 (isHealthy)**: 404 에러, 403 차단, 빈 검색 결과, 로그인 차단 화면이면 false.
-2. **주제 일치성 (isContentMatched)**: 화면에 타겟 주제("${expectedTopicKeyword}")와 관련된 실제 정책, 통계, 청약, 상품 정보가 확실히 노출되는지 판정.
-3. **일치성 점수 (relevanceScore)**: 0~100점 (80점 이상이면 통과, 70점 미만은 불일치).
+1. **정상 랜딩 여부 (isHealthy)**: 404 에러, 403 차단, 빈 검색 결과, 도메인 파킹(Lander) 화면이면 반드시 false!
+2. **주제 일치성 (isContentMatched)**: 화면에 타겟 주제("${expectedTopicKeyword}")와 관련된 실제 정책, 통계, 청약, 상품 정보가 확실히 노출되는지 판정. 빈 화면이나 무관한 페이지면 반드시 false!
+3. **일치성 점수 (relevanceScore)**: 0~100점 (80점 이상이면 통과, 70점 미만은 불일치/탈락).
 4. **보정 제안 (suggestedCorrection)**: 불일치 시 대안 공식 URL 제안.
 
 반드시 다음 JSON 포맷으로만 응답하세요:
@@ -174,52 +185,54 @@ export async function verifyUrlAndCaptureScreenshot(
   "verificationNotes": "검증 상세 사유 요약"
 }`;
 
-      let contentPayload: any = prompt;
-      if (screenshotBase64) {
-        contentPayload = [
-          prompt,
-          {
-            inlineData: {
-              data: screenshotBase64,
-              mimeType: 'image/jpeg',
+        let contentPayload: any = prompt;
+        if (screenshotBase64) {
+          contentPayload = [
+            prompt,
+            {
+              inlineData: {
+                data: screenshotBase64,
+                mimeType: 'image/jpeg',
+              },
             },
-          },
-        ];
+          ];
+        }
+
+        const visionRes = await generateContentWithFallback(ai, {
+          contents: contentPayload,
+          config: { responseMimeType: 'application/json', temperature: 0.1 },
+        });
+
+        const parsed = safeJsonParse<{
+          isHealthy: boolean;
+          isContentMatched: boolean;
+          relevanceScore: number;
+          suggestedCorrection: string;
+          verificationNotes: string;
+        }>(visionRes.text || '{}', {
+          isHealthy: false,
+          isContentMatched: false,
+          relevanceScore: 0,
+          suggestedCorrection: '',
+          verificationNotes: '비전 응답 파싱 실패',
+        });
+
+        isHealthy = parsed.isHealthy ?? false;
+        isContentMatched = parsed.isContentMatched ?? false;
+        relevanceScore = parsed.relevanceScore ?? 0;
+        suggestedCorrection = parsed.suggestedCorrection || '';
+        verificationNotes = parsed.verificationNotes || '검증 완료';
+      } catch (e) {
+        isHealthy = false;
+        isContentMatched = false;
+        relevanceScore = 0;
+        verificationNotes = `비전 검증 예외 발생`;
       }
-
-      const visionRes = await generateContentWithFallback(ai, {
-        contents: contentPayload,
-        config: { responseMimeType: 'application/json', temperature: 0.1 },
-      });
-
-      const parsed = safeJsonParse<{
-        isHealthy: boolean;
-        isContentMatched: boolean;
-        relevanceScore: number;
-        suggestedCorrection: string;
-        verificationNotes: string;
-      }>(visionRes.text || '{}', {
-        isHealthy: true,
-        isContentMatched: true,
-        relevanceScore: 85,
-        suggestedCorrection: '',
-        verificationNotes: '기본 일치성 확인',
-      });
-
-      isHealthy = parsed.isHealthy ?? true;
-      isContentMatched = parsed.isContentMatched ?? true;
-      relevanceScore = parsed.relevanceScore ?? 80;
-      suggestedCorrection = parsed.suggestedCorrection || '';
-      verificationNotes = parsed.verificationNotes || '검증 완료';
-    } catch (e) {
-      isContentMatched = true;
-      relevanceScore = 80;
-      verificationNotes = `페이지 응답 정상 (${status} OK)`;
     }
   } else {
     isContentMatched = false;
     relevanceScore = 0;
-    verificationNotes = `비정상 HTTP 응답 코드: ${status}`;
+    verificationNotes = verificationNotes || `비정상 HTTP 응답 코드: ${status}`;
   }
 
   const resultStatusIcon = isHealthy && isContentMatched && relevanceScore >= 70 ? '✅ 통과' : '⚠️ 주의/불일치';
