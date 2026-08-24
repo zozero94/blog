@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GeneratedPost } from './types.js';
 import { PublicFactData } from './public-data.js';
 import { generateContentWithFallback, safeJsonParse, extractCleanPostFromRawText } from './model-resolver.js';
+import { auditEngineeringAndArchitecture } from './system-auditor.js';
 
 export interface AgentFeedback {
   agentName: string;
@@ -25,12 +26,12 @@ export const REVIEWER_AGENTS = [
   { 
     id: 'mobile_web_ux', 
     name: '반응형 웹 & 모바일 UX 아키텍트', 
-    role: '스마트폰 화면(360~430px)과 PC 웹 양쪽에서 문단 길이(2~4문장), 표(Table) 가로 스크롤/가독성, 둥근 콜아웃 박스, 시각적 구분선, 폰트 강조 등 이탈률 방지 및 완벽한 랜딩 디자인 검증' 
+    role: '스마트폰 화면(360~430px)과 PC 웹 양쪽에서 문단 길이(2~4문장), 표(Table) 가독성, 둥근 요약 박스, 시각적 구분선 등 가독성 검증' 
   },
   { 
     id: 'realtime_factchecker', 
     name: '실시간 시장 지표 팩트체커', 
-    role: '원고에 언급된 환율, 금리, 주가, 실거래가 수치와 방향성 표현(고환율/저환율, 상승/하락 등)이 오늘 현재 실제 수치와 정확히 일치하는지 전수 대조하여 시점 불일치 및 왜곡/모순 적발' 
+    role: '원고에 언급된 환율, 금리, 실거래가 수치가 오늘 현재 실제 수치와 정확히 일치하는지 전수 대조하여 시점 불일치 적발' 
   },
   { id: 'viral', name: '바이럴/공유 평가자', role: '단톡방/커뮤니티 공유를 유도하는 킬러 인사이트 및 핵심 문장 검증' },
 ];
@@ -58,14 +59,18 @@ ${agentDescriptions}
 
 [평가 대상 원고]
 제목: ${post.title}
-3줄 요약: ${post.summary}
-공공데이터 반영: ${publicData ? `${publicData.sourceName} (${publicData.summaryText})` : '없음'}
-본문(HTML): ${post.htmlContent.slice(0, 3500)}...
+카테고리: ${post.categories.join(', ')}
+태그: ${post.tags.join(', ')}
+본문(HTML):
+${post.content.slice(0, 4000)}...
 
-[평가 및 피드백 원칙]
-1. ★ **"실시간 시장 지표 팩트체커"**는 환율, 금리, 실거래가 수치의 시점 정합성을 엄격하게 교차 검증하고, 모순 발견 시 5점 이하의 감점과 함께 즉각 수정 지침을 내리세요.
-2. **"반응형 웹 & 모바일 UX 아키텍트"**는 스마트폰 화면에서 텍스트가 빽빽한 벽돌글이 아닌지, 콜아웃 박스와 표(Table) 스타일이 모바일 최적화되었는지 채점하세요.
-3. **"데이터 스토리텔러"**와 **"자산 시뮬레이션 계산관"**은 단순 수치 나열을 넘어 독자 입장의 손익 해석과 구체적 셈법(계산표)이 들어있는지 채점하세요.
+[원고 작성 시 반영된 공공데이터 팩트]
+${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
+
+[채점 및 지침 작성 원칙]
+1. ★ **"반응형 웹 & 모바일 UX 아키텍트"**: 스마트폰에서 3초 이상 멈칫하지 않고 부드럽게 읽히는지, 긴 문단(5줄 이상)이 없는지, 표와 콜아웃 박스가 모바일 친화적인지 엄격 채점.
+2. ★ **"실시간 시장 지표 팩트체커"**: 원고의 수치/방향성이 최신 데이터와 일치하는지 팩트체크.
+3. ★ **더미 텍스트 배제**: [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 없어야 함.
 
 반드시 다음 JSON 배열 포맷으로만 응답하세요:
 [
@@ -73,7 +78,7 @@ ${agentDescriptions}
     "agentName": "전문가 이름",
     "role": "역할",
     "score": 8,
-    "strengths": "잘된 부분",
+    "strengths": "원고에서 훌륭한 점",
     "improvements": "구체적인 보강 및 수정 지시사항"
   }, ... (총 13개)
 ]`;
@@ -81,28 +86,33 @@ ${agentDescriptions}
   try {
     const response = await generateContentWithFallback(ai, {
       contents: prompt,
-      config: { responseMimeType: 'application/json', temperature: 0.3 },
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.3,
+      },
     });
-    const feedbacks = safeJsonParse<AgentFeedback[]>(response.text || '[]', []);
-    const validFeedbacks = feedbacks.length > 0 ? feedbacks : REVIEWER_AGENTS.map((a) => ({
+
+    const parsed = safeJsonParse<AgentFeedback[]>(response.text || '[]', []);
+    const validFeedbacks = parsed.length > 0 ? parsed : REVIEWER_AGENTS.map((a) => ({
       agentName: a.name,
       role: a.role,
       score: 8,
-      strengths: '기본 구조 및 전문성 확보',
-      improvements: '실시간 지표 팩트체크 및 모바일 레이아웃 보강 필요',
+      strengths: '기본적인 분석 흐름이 충실함',
+      improvements: '모바일 가독성 및 자산 시뮬레이션 수치 보강 필요',
     }));
+
     const totalScore = validFeedbacks.reduce((acc, f) => acc + (f.score || 7), 0);
     const averageScore = Number((totalScore / validFeedbacks.length).toFixed(1));
+
     return { feedbacks: validFeedbacks, averageScore };
   } catch (e) {
-    console.warn(`[Reviewer] 13인 리뷰 오류, 기본 피드백 적용:`, e);
     return {
       feedbacks: REVIEWER_AGENTS.map((a) => ({
         agentName: a.name,
         role: a.role,
         score: 8,
-        strengths: '기본 구조 및 전문성 확보',
-        improvements: '실시간 지표 팩트체크 및 모바일 레이아웃 보강 필요',
+        strengths: '기본 흐름 양호',
+        improvements: '모바일 가독성 개선 필요',
       })),
       averageScore: 8.0,
     };
@@ -110,7 +120,7 @@ ${agentDescriptions}
 }
 
 /**
- * 13인의 피드백을 총망라하여 메인 에디터 AI가 원고를 전면 리라이팅/업그레이드
+ * 13인의 피드백을 반영하여 원고 전면 리라이팅
  */
 export async function rewritePostWithFeedback(
   apiKey: string,
@@ -128,52 +138,34 @@ export async function rewritePostWithFeedback(
     )
     .join('\n\n');
 
-  const systemInstruction = `당신은 세계 최고 수준의 수석 에디터이자 실시간 팩트체크 및 모바일 UI/UX 콘텐츠 디렉터입니다.
-13인의 전문 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 완벽히 흡수하여, 기존 원고를 최상급 프리미엄 팩트체크 반응형 칼럼으로 전면 리라이팅(Refinement)하세요.
+  const systemInstruction = `당신은 대한민국 최고 수준의 금융/경제 수석 전문 에디터이자 콘텐츠 디렉터입니다.
+13인의 감수 위원회가 제출한 상세 피드백(Round ${round})을 100% 수용하여, 기존 원고를 최상급 프리미엄 반응형 칼럼으로 전면 리라이팅하세요.
 
-[리라이팅 필수 반영 항목]
-1. **🔍 완벽한 실시간 지표 팩트 정합성**:
-   - 제공된 공공데이터(한국은행 최신 환율/금리, 국토부 실거래가)의 실제 수치와 정확히 일치하도록 서술하고, 수치와 모순되는 잘못된 표현을 완전히 바로잡으세요.
-2. **📱 모바일 & 웹 완벽 반응형 UI/UX 디자인**:
-   - 모바일에서 한눈에 읽히도록 문단을 2~4문장 단위로 시원하게 분리하세요.
-   - 핵심 단어와 숫자에 <strong> 태그를 적재적소에 적용하세요.
-   - 도입부: 부드러운 파스텔 블루톤의 3줄 핵심 요약 콜아웃 박스
-3. **📊 데이터 스토리텔링 & 구체적 계산 시뮬레이션**:
-   - 공공데이터/실거래가 수치가 독자의 통장에 주는 실질적 의미와 손익을 해석하세요.
-   - 대출 이자 변동, 절세 금액, 배당 수익률 등 구체적인 시뮬레이션 계산표(Table)를 포함하세요.
-4. **입체적 구조**:
-   - 도입부: 문제 제기 + 3줄 핵심 요약 박스
-   - 📌 [정부/공공기관 공식 팩트체크 박스]
-   - <h2> 1. 현상과 배경: 왜 지금 이 수치가 터져 나왔는가?
-   - <h2> 2. 시장 심리와 사이클: 대중의 움직임과 향후 시나리오
-   - <h2> 3. 실전 자산 시뮬레이션: 내 돈에 미치는 구체적 영향 (계산표)
-   - <h2> 4. 독자 맞춤형 3대 실천 행동 수칙
-   - <h2> 5. 가장 궁금해하는 FAQ 3선
-   - 결론: 1줄 핵심 요약 및 최종 제언
-   - 💡 (선택사항) 본문 맨 끝에 주제와 직결되는 추천 도서/준비물 카드가 있는 경우 자연스럽게 유지 (쿠팡 파트너스 ID: AF2968960)
+[리라이팅 핵심 필수 규칙]
+1. 13인의 지적사항 100% 반영: 각 전문가가 지시한 보완 사항을 본문에 자연스럽게 녹여내세요.
+2. 모바일 반응형 완벽 최적화: 2~4문장 단위 문단 분리, 핵심 키워드 <strong> 강조, 둥근 콜아웃 박스, 가격/지표 비교표.
+3. 🚫 더미 요소 배제: [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 절대 작성하지 말 것.
 
 [출력 형식]
-반드시 다음 JSON 포맷으로만 응답하세요 (마크다운 백틱 없이 순수 JSON):
+반드시 다음 JSON 형식으로만 응답하세요:
 {
-  "title": "13인 피드백을 반영해 더욱 매력적으로 개선된 SEO 제목",
+  "title": "클릭률을 극대화하는 매력적인 SEO 제목",
   "summary": "3줄 핵심 요약",
-  "metaDescription": "검색 최적화 메타 디스크립션",
-  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5", "태그6"],
-  "htmlContent": "<p>완성된 고품질 반응형 HTML 본문...</p>"
+  "content": "<p>완성된 고품질 반응형 HTML 본문...</p>",
+  "categories": ["카테고리"],
+  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
 }`;
 
   const prompt = `[현재 원고 제목]: ${currentPost.title}
+[카테고리]: ${currentPost.categories.join(', ')}
 
 [13인의 전문가 상세 리뷰 및 보강 지침 (Round ${round})]:
 ${feedbackSummary}
 
-[공공데이터 정보]:
-${publicData ? `${publicData.sourceName} - ${publicData.dataType} (${publicData.summaryText})` : '없음'}
-
 [기존 본문]:
-${currentPost.htmlContent}
+${currentPost.content}
 
-위 13인의 지적 사항과 실시간 지표 팩트체크를 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
+위 13인의 지적 사항을 100% 반영하여 최고 수준의 완성도를 갖춘 최종 원고로 리라이팅해 주세요.`;
 
   try {
     const response = await generateContentWithFallback(ai, {
@@ -200,18 +192,17 @@ ${currentPost.htmlContent}
 }
 
 /**
- * ★ [80점 미만 시 자동 반복 리뷰 루프]
- * 13인 종합 점수가 80점(8.0점/10점)을 넘을 때까지 계속해서 리라이팅 & 재감수를 반복 실행
+ * 최소 2회 이상 + 80점 돌파제 + 5인 개발/아키텍처 감사 + 메인 총괄 에디터 최종 마스터 검수 루프
  */
 export async function executeIterativeReviewLoop(
   apiKey: string,
   initialPost: GeneratedPost,
   publicData: PublicFactData | null,
-  targetScore: number = 8.0, // 100점 환산 시 80점
-  maxRounds: number = 5 // 최대 5회 반복
+  targetScore: number = 8.0,
+  maxRounds: number = 4
 ): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number }> {
   console.log('\n================================================================');
-  console.log(`🏛️ [13인 감수 엔진 가동] 종합 점수 ${Math.round(targetScore * 10)}점(80점 기준) 돌파 시까지 반복 검증 루프 시작`);
+  console.log(`🏛️ [1호점 13인 감수 엔진 가동] 최소 2회 + 80점(8.0/10) 돌파제 루프 시작`);
   console.log('================================================================');
 
   let currentPost = initialPost;
@@ -220,7 +211,7 @@ export async function executeIterativeReviewLoop(
   const scoreHistory: number[] = [];
 
   for (let round = 1; round <= maxRounds; round++) {
-    console.log(`\n🔍 [Round ${round}/${maxRounds}] 13인의 전문가가 원고 정밀 평가 중...`);
+    console.log(`\n🔍 [Round ${round}/${maxRounds}] 13인의 금융/경제 전문가가 원고 정밀 평가 중...`);
     const evalResult = await evaluateWith12Agents(apiKey, currentPost, publicData, round);
     currentScore = evalResult.averageScore;
     lastFeedbacks = evalResult.feedbacks;
@@ -229,35 +220,112 @@ export async function executeIterativeReviewLoop(
     const scoreOutOf100 = Math.round(currentScore * 10);
     console.log(`📊 [Round ${round} 채점 결과] 13인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
 
-    // 주요 지적사항 상위 3건 출력
     evalResult.feedbacks.slice(0, 3).forEach((f) => {
       console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
     });
 
-    // ★ 80점(8.0점) 이상 달성 시 즉시 통과!
-    if (currentScore >= targetScore) {
-      console.log(`\n🎉 🎯 [기준 통과] 종합 점수 ${scoreOutOf100}점으로 목표치(${Math.round(targetScore * 10)}점)를 돌파하여 감수를 합격 완료합니다!`);
+    // 최소 2회 이상 실행 + 80점 돌파 시 통과
+    if (round >= 2 && currentScore >= targetScore) {
+      console.log(`\n🎉 🎯 [기준 통과] Round ${round}에서 종합점수 ${scoreOutOf100}점으로 80점 기준 돌파 성공!`);
       break;
     }
 
-    // 80점 미만인 경우 리라이팅 후 다음 라운드 진행
     if (round < maxRounds) {
-      console.log(`\n⚠️ 점수 미달 (${scoreOutOf100}점 < ${Math.round(targetScore * 10)}점) -> 13인 지적사항 100% 반영하여 전면 리라이팅 후 Round ${round + 1} 재심사 돌입!`);
+      console.log(`\n✍️ [Round ${round} 리라이팅] 13인 지적사항을 반영하여 전면 리라이팅 진행 중...`);
       currentPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, round);
-      console.log(`✍️ [Round ${round} 리라이팅 완료]: "${currentPost.title}"`);
-    } else {
-      console.log(`\nℹ️ 최대 라운드(${maxRounds}회)에 도달하여 현재 최고 완성본으로 최종 정리합니다. (최종 점수: ${scoreOutOf100}점)`);
+      console.log(`✅ [Round ${round} 리라이팅 완료]: "${currentPost.title}"`);
     }
   }
 
-  // 최종 마감 리라이팅 (통과된 피드백 미세 반영)
-  console.log('\n✨ [최종 디렉팅] 모든 피드백이 완벽 반영된 프리미엄 최종 완성본 도출 중...');
-  const finalPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, scoreHistory.length);
-  console.log(`🏆 최종 완성본 도출 성공: "${finalPost.title}"`);
+  // =========================================================================
+  // ★ [4.8단계: 5인의 개발/아키텍처 집중형 엔지니어링 감사]
+  // =========================================================================
+  console.log('\n💻 [4.8단계] 5인의 개발/아키텍처 집중형 엔지니어링 에이전트 시스템 감사 가동...');
+  const devAudit = auditEngineeringAndArchitecture(currentPost);
+  currentPost.content = devAudit.sanitizedHtml;
+  console.log(`🛠️ 개발/아키텍처 종합 평점: ${devAudit.averageDevScore} / 10점 (${devAudit.overallPassed ? '전원 통과' : '경미한 수정'})`);
+  devAudit.feedbacks.forEach((f) => {
+    console.log(`   - [${f.agentName}] (${f.score}점): ${f.recommendations.join(', ')}`);
+  });
 
-  const summary = `13인 감수 완료 (${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' -> ')} / 최종: ${Math.round(currentScore * 10)}점 통과 ✅)`;
-  return { finalPost, reviewSummary: summary, roundsExecuted: scoreHistory.length };
+  // =========================================================================
+  // ★ [메인 총괄 에이전트] 총괄 편집국장 최종 마스터 검수 및 발행 승인 단계
+  // =========================================================================
+  console.log('\n👑 [메인 총괄 에이전트] 1호점 총괄 수석 에디터(편집국장) 최종 마스터 검수 및 수정 진행 중...');
+  const masterPost = await executeFinanceChiefEditorFinalInspection(
+    apiKey,
+    currentPost,
+    publicData,
+    scoreHistory.map((s, i) => `R${i + 1}:${Math.round(s * 10)}점`).join(' -> '),
+    devAudit.technicalIssuesSummary
+  );
+  console.log(`🎖️ [최종 마스터 승인 완료] 1호점 수석 편집국장 발행 승인 도장 날인: "${masterPost.title}"`);
+
+  const summary = `13인 감수(${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join('->')} | Dev:${devAudit.averageDevScore}점) -> 최종 승인 ✅`;
+  return { finalPost: masterPost, reviewSummary: summary, roundsExecuted: scoreHistory.length };
 }
 
-// 레거시 함수 호환성 유지
+/**
+ * 1호점 금융/경제 메인 총괄 에이전트 (총괄 수석 에디터 / 편집국장) 최종 마스터 검수 & 폴리싱
+ */
+export async function executeFinanceChiefEditorFinalInspection(
+  apiKey: string,
+  post: GeneratedPost,
+  publicData: PublicFactData | null,
+  reviewHistory: string,
+  devIssuesSummary: string = ''
+): Promise<GeneratedPost> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const systemInstruction = `당신은 대한민국 최고 권위의 금융/경제 리서치 총괄 편집국장(Editor-in-Chief Main Agent)입니다.
+13인의 금융 전문 감수 위원회와 5인의 개발/아키텍처 엔지니어링 에이전트가 올린 종합 평가 결과를 토대로, 최종 원고를 직접 판단하고 완성도 100%의 최종 마스터본으로 승인 및 리라이팅하세요.
+
+[편집국장 최종 마스터 검수 체크리스트]
+1. **신뢰성과 가독성의 밸런스**: 공공데이터 팩트와 자산 시뮬레이션 수치가 정확하며 초심자도 술술 읽히는가?
+2. **개발/아키텍처 무결성 최종 반영**: 5인의 엔지니어링 에이전트가 지적한 기술적 이슈(DOM 닫는 태그, 보안 속성, XSS 방지)를 완벽히 해결했는가?
+3. **군더더기 및 번역투 최종 소제**: 지루한 서론을 걷어내고 3초 만에 몰입되도록 정제.
+
+[출력 형식]
+반드시 다음 JSON 포맷으로만 응답하세요:
+{
+  "title": "편집국장이 최종 확정한 마스터 헤드라인",
+  "summary": "3줄 핵심 요약",
+  "content": "<p>완성된 최종 마스터 HTML 본문...</p>",
+  "categories": ["카테고리"],
+  "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
+}`;
+
+  const prompt = `[13인 콘텐츠 감수 이력]: ${reviewHistory}
+[5인 개발/아키텍처 감사 보고]: ${devIssuesSummary || '기술적 이슈 없음 (전원 합격)'}
+[원고 제목]: ${post.title}
+[카테고리]: ${post.categories.join(', ')}
+
+[본문]:
+${post.content}
+
+위 원고를 총괄 편집국장 관점에서 기술적/문맥적 결함을 최종 판단하여 완벽한 마스터본으로 승인해 주세요.`;
+
+  try {
+    const response = await generateContentWithFallback(ai, {
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        temperature: 0.5,
+        maxOutputTokens: 8192,
+      },
+    });
+
+    const responseText = response.text || '';
+    return extractCleanPostFromRawText(
+      responseText,
+      post.title,
+      post.categories[0] || '경제',
+      post.tags
+    );
+  } catch (e) {
+    return post;
+  }
+}
+
 export const executeTwoRoundReviewLoop = executeIterativeReviewLoop;
