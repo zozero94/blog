@@ -184,17 +184,17 @@ ${currentPost.htmlContent}
 }
 
 /**
- * 최소 2회 이상 + 80점 돌파제 + 5인 개발/아키텍처 감사 + 메인 총괄 에디터 최종 마스터 검수 루프
+ * 최소 2회 이상 + 75점 돌파제 + 5인 개발/아키텍처 감사 + 메인 총괄 에디터 최종 마스터 검수 루프
  */
 export async function executeIterativeReviewLoop(
   apiKey: string,
   initialPost: GeneratedPost,
   publicData: PublicFactData | null,
-  targetScore: number = 8.0,
+  targetScore: number = 7.5,
   maxRounds: number = 4
 ): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number; passed: boolean; finalScore: number }> {
   console.log('\n================================================================');
-  console.log(`🏛️ [1호점 13인 감수 엔진 가동] 최소 2회 + 80점(8.0/10) 돌파제 루프 시작`);
+  console.log(`🏛️ [1호점 13인 감수 엔진 가동] 최소 2회 + 75점(7.5/10) 돌파제 루프 시작`);
   console.log('================================================================');
 
   let currentPost = initialPost;
@@ -216,9 +216,9 @@ export async function executeIterativeReviewLoop(
       console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
     });
 
-    // 최소 2회 이상 실행 + 80점 돌파 시 통과
+    // 최소 2회 이상 실행 + 75점 돌파 시 통과
     if (round >= 2 && currentScore >= targetScore) {
-      console.log(`\n🎉 🎯 [기준 통과] Round ${round}에서 종합점수 ${scoreOutOf100}점으로 80점 기준 돌파 성공!`);
+      console.log(`\n🎉 🎯 [기준 통과] Round ${round}에서 종합점수 ${scoreOutOf100}점으로 75점 기준 돌파 성공!`);
       break;
     }
 

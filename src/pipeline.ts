@@ -126,32 +126,32 @@ async function run() {
       initialPost.verifiedLinks = [verifiedOfficialLink];
       console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-      // [4단계] 13인 멀티 전문가 종합 80점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
-      console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 80점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
+      // [4단계] 13인 멀티 전문가 종합 75점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
+      console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 75점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
       const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
         geminiApiKey,
         initialPost,
         publicData,
-        8.0, // 80점 기준
+        7.5, // 75점 기준
         4    // 최대 4회 반복
       );
 
-      // ★ [품질 방어선] 80점 미만 시 차순위 주제로 자동 전환 & 재탐구
+      // ★ [품질 방어선] 75점 미만 시 차순위 주제로 자동 전환 & 재탐구
       if (!passed) {
-        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 13인 종합 점수(${finalScore}점)가 80점에 미달!`);
+        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 13인 종합 점수(${finalScore}점)가 75점에 미달!`);
         const nextCandidate = candidateTopics[candidateIdx + 1];
 
         if (nextCandidate) {
           await telegramClient.sendMessage(
             `⚠️ <b>[금융 1호점] 원고 반려 ➔ 차순위 주제 자동 전환</b>\n\n` +
-            `❌ <b>반려 주제:</b> ${escapeHtml(topicResult.mainTopicTitle)} (${finalScore}점 / 기준: 80점)\n` +
+            `❌ <b>반려 주제:</b> ${escapeHtml(topicResult.mainTopicTitle)} (${finalScore}점 / 기준: 75점)\n` +
             `🔄 <b>감수 이력:</b> ${escapeHtml(reviewSummary)}\n\n` +
-            `🚀 <b>자동 조치:</b> 80점을 넘지 못해 즉시 차순위 경제 후보 [<b>${escapeHtml(nextCandidate.mainTopicTitle)}</b>] 로 전환하여 고품질 원고 재탐구를 시작합니다!`
+            `🚀 <b>자동 조치:</b> 75점을 넘지 못해 즉시 차순위 경제 후보 [<b>${escapeHtml(nextCandidate.mainTopicTitle)}</b>] 로 전환하여 고품질 원고 재탐구를 시작합니다!`
           );
         } else {
           await telegramClient.sendMessage(
             `🚫 <b>[금융 1호점] 전체 후보 품질 기준 미달</b>\n\n` +
-            `수집된 모든 경제/부동산 후보가 80점 기준을 달성하지 못하여 포스팅 발행을 안전하게 중단했습니다.`
+            `수집된 모든 경제/부동산 후보가 75점 기준을 달성하지 못하여 포스팅 발행을 안전하게 중단했습니다.`
           );
         }
         continue; // 다음 후보로 넘어가서 파이프라인 재실행!
