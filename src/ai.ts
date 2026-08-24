@@ -94,7 +94,7 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
      ⑨ 💡 [선택적 연관 도서/실전 준비물 카드] (★무조건 넣지 말고, 해당 금융/부동산 주제와 100% 직결되는 베스트셀러 경제 도서나 이사/실생활 꿀템이 명확한 경우에만 본문 맨 끝에 은은한 1줄 카드로 삽입):
         <div style="margin: 28px 0 10px 0; padding: 14px 18px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13.5px; color: #475569;">
           <span style="font-size: 15px;">📚</span> <strong style="color: #1e293b;">함께 보면 좋은 전문가 추천 자료:</strong>
-          <p style="margin: 6px 0 0 0;"><a href="https://m.coupang.com/nm/search?q=[주제연관도서또는아이템명]" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; font-weight: 600;">[해당 주제 필수 도서/준비물명] 최저가 및 세부 정보 확인하기 &rarr;</a></p>
+          <p style="margin: 6px 0 0 0;"><a href="https://www.coupang.com/np/search?q=[주제연관도서또는아이템명]" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="color: #2563eb; text-decoration: underline; font-weight: 600;">[해당 주제 필수 도서/준비물명] 최저가 및 세부 정보 확인하기 &rarr;</a></p>
           <p style="font-size: 11px; color: #94a3b8; margin-top: 6px; margin-bottom: 0;">※ 이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받을 수 있습니다. (ID: AF2968960)</p>
         </div>
 
