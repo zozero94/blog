@@ -128,8 +128,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true });
       }
 
-      // 2) 트렌드 웹진 2호점 트리거
-      if (text.startsWith('/trend') || text.startsWith('트렌드') || text.startsWith('트랜드')) {
+      // 2) 트렌드 웹진 2호점 트리거 & 피드백 리라이팅
+      if (text.startsWith('/trend') || text.startsWith('트렌드') || text.startsWith('트랜드') || text.startsWith('수정') || text.startsWith('리라이팅') || text.startsWith('피드백')) {
         let customKeyword = '';
         if (text.startsWith('/trend')) {
           customKeyword = text.replace('/trend', '').trim();
@@ -137,6 +137,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           customKeyword = text.replace('트렌드', '').trim();
         } else if (text.startsWith('트랜드')) {
           customKeyword = text.replace('트랜드', '').trim();
+        } else if (text.startsWith('수정')) {
+          customKeyword = text.replace('수정', '').trim();
+        } else if (text.startsWith('리라이팅')) {
+          customKeyword = text.replace('리라이팅', '').trim();
+        } else if (text.startsWith('피드백')) {
+          customKeyword = text.replace('피드백', '').trim();
         }
 
         if (!githubPat) {
@@ -147,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await telegram.sendMessage(
-          `🚀 <b>[트렌드 2호점 가동]</b>\n${customKeyword ? `🎯 타겟 키워드: <b>"${customKeyword}"</b>\n` : '📡 실시간 1등 대세 트렌드 탐색 중...\n'}Playwright 스크린샷 팩트체크 및 10인 감수 루프를 시작합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
+          `🚀 <b>[트렌드 2호점 가동]</b>\n${customKeyword ? `🎯 타겟/피드백: <b>"${customKeyword}"</b>\n` : '📡 실시간 1등 대세 트렌드 5대 소스(구글/유튜브/틱톡/릴스/네이버) 탐색 중...\n'}15인의 전문 위원회 감수 루프 (최소 2회 + 80점 돌파제)를 가동합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
         );
 
         // GitHub Actions Workflow Dispatch 호출 (zozero94/trend)
