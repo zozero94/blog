@@ -38,17 +38,24 @@ export async function generateContentWithFallback(
       return response;
     } catch (err: any) {
       lastError = err;
-      const isOverloaded =
+      const isRetryable =
         err?.status === 503 ||
         err?.message?.includes('503') ||
+        err?.status === 500 ||
+        err?.message?.includes('500') ||
+        err?.status === 502 ||
+        err?.message?.includes('502') ||
         err?.message?.includes('high demand') ||
         err?.status === 429 ||
         err?.message?.includes('429') ||
         err?.status === 404 ||
-        err?.message?.includes('RESOURCE_EXHAUSTED');
+        err?.message?.includes('RESOURCE_EXHAUSTED') ||
+        err?.message?.includes('fetch failed') ||
+        err?.message?.includes('ECONNRESET') ||
+        err?.message?.includes('ETIMEDOUT');
 
-      if (isOverloaded) {
-        console.warn(`[Gemini] 모델 ${modelName} 일시적 부하 감지 -> 다음 가용 모델로 자동 전환 중...`);
+      if (isRetryable) {
+        console.warn(`[Gemini] 모델 ${modelName} 호출 실패 (${err?.message?.slice(0, 80)}) -> 다음 가용 모델로 자동 전환 중...`);
         await new Promise((r) => setTimeout(r, 1000));
         continue;
       }
@@ -60,7 +67,7 @@ export async function generateContentWithFallback(
 }
 
 /**
- * LLM JSON 응답 안전 파싱 헬퍼
+ * LLM JSON 응답 안전 파싱 헬퍼 (프리앰블 텍스트 자동 정제)
  */
 export function safeJsonParse<T>(rawText: string, fallback: T): T {
   if (!rawText) return fallback;
@@ -72,6 +79,10 @@ export function safeJsonParse<T>(rawText: string, fallback: T): T {
     return JSON.parse(cleaned) as T;
   } catch (e) {
     try {
+      const match = rawText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (match) {
+        return JSON.parse(match[0]) as T;
+      }
       const sanitized = rawText
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => (c === '\n' || c === '\r' || c === '\t' ? c : ''))
         .trim();

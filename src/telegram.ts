@@ -25,6 +25,7 @@ export class TelegramClient {
         parse_mode: 'HTML',
         disable_web_page_preview: false,
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -54,6 +55,7 @@ export class TelegramClient {
         disable_web_page_preview: false,
         reply_markup: replyMarkup,
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {

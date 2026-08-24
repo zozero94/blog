@@ -31,6 +31,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // =========================================================================
     const callbackQuery = update?.callback_query;
     if (callbackQuery) {
+      const senderChatId = callbackQuery.from?.id?.toString() || callbackQuery.message?.chat?.id?.toString();
+
+      // 인가된 사용자(본인)인지 검증
+      if (senderChatId !== telegramChatId.toString()) {
+        console.warn(`Unauthorized callback attempt from chatId: ${senderChatId}`);
+        if (callbackQuery.id) {
+          await fetch(`https://api.telegram.org/bot${telegramBotToken}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: callbackQuery.id, text: '권한이 없습니다.', show_alert: true }),
+          }).catch(() => {});
+        }
+        return res.status(200).json({ error: 'Unauthorized' });
+      }
+
       if (callbackQuery.id) {
         await fetch(`https://api.telegram.org/bot${telegramBotToken}/answerCallbackQuery`, {
           method: 'POST',
@@ -43,7 +58,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parts = callbackData.split(':');
       const action = parts[0];
       const messageId = callbackQuery.message?.message_id;
-      const senderChatId = callbackQuery.message?.chat?.id?.toString() || telegramChatId;
+
+      // 버튼 중복 클릭 방지: 즉시 인라인 키보드 제거
+      if (messageId) {
+        await fetch(`https://api.telegram.org/bot${telegramBotToken}/editMessageReplyMarkup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: senderChatId,
+            message_id: messageId,
+            reply_markup: { inline_keyboard: [] },
+          }),
+        }).catch(() => {});
+      }
       
       let targetBlogId = defaultBloggerBlogId;
       let targetPostId = '';
@@ -65,18 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (action === 'publish') {
         let publishedUrl = '';
         if (targetPostId && targetPostId !== 'none') {
-          try {
-            const result = await blogger.publishPost(targetPostId);
-            publishedUrl = result.url || domainUrl;
-          } catch (pubErr: any) {
-            if (!isTrendBlog) {
-              const fallbackBlogger = new BloggerClient(trendBloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
-              const fallbackResult = await fallbackBlogger.publishPost(targetPostId);
-              publishedUrl = fallbackResult.url || 'https://trend.zozero94.com';
-            } else {
-              throw pubErr;
-            }
-          }
+          const result = await blogger.publishPost(targetPostId);
+          publishedUrl = result.url || domainUrl;
         }
 
         await telegram.sendMessage(
@@ -84,14 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       } else if (action === 'delete') {
         if (targetPostId && targetPostId !== 'none') {
-          try {
-            await blogger.deletePost(targetPostId);
-          } catch (delErr) {
-            if (!isTrendBlog) {
-              const fallbackBlogger = new BloggerClient(trendBloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
-              await fallbackBlogger.deletePost(targetPostId);
-            }
-          }
+          await blogger.deletePost(targetPostId);
         }
 
         await telegram.sendMessage(`🗑️ <b>[삭제 완료]</b> ${blogTypeKo} 임시글이 안전하게 삭제되었습니다.`);

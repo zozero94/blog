@@ -267,16 +267,16 @@ export function auditAndFixFinanceHtmlLinks(
 ): string {
   let fixedHtml = htmlContent;
 
-  // 1. 텍스트 이미지 플레이스홀더 / 빈 회색 박스 / 대괄호 사진 안내문 100% 완전 삭제
+  // 1. 텍스트 이미지 플레이스홀더 / 빈 회색 박스 / 대괄호 사진 안내문 100% 완전 삭제 (정상 가이드 소제목 보존)
   fixedHtml = fixedHtml.replace(/<!--[\s\S]*?-->/gi, '');
-  fixedHtml = fixedHtml.replace(/\[[^\]]*(사진|이미지|영역|포토존|가이드|비주얼)[^\]]*\]/gi, '');
+  fixedHtml = fixedHtml.replace(/\[\s*(사진|이미지|포토존|비주얼)\s*(영역|가이드|설명|안내)?\s*\]/gi, '');
   fixedHtml = fixedHtml.replace(/<div[^>]*>[\s\S]*?(📸|\[이미지:|Alt:|이미지 가이드|포토존|사진 영역)[\s\S]*?<\/div>/gi, '');
-  fixedHtml = fixedHtml.replace(/📸\s*\[이미지:[^\]]*\]/gi, '');
+  fixedHtml = fixedHtml.replace(/📸\s*\[[^\]]*\]/gi, '');
   fixedHtml = fixedHtml.replace(/<p[^>]*>[\s\S]*?(📸|사진 영역|이미지 영역)[\s\S]*?<\/p>/gi, '');
 
   // 2. 공식 직통 URL 치환 (존재 시)
   if (validUrls.officialUrl) {
-    fixedHtml = fixedHtml.replace(/href=['"]https?:\/\/(?:www\.)?(?:data\.go\.kr|applyhome|rt\.molit|fine\.fss|ecos\.bok)[^'"]*['"]/gi, `href="${validUrls.officialUrl}"`);
+    fixedHtml = fixedHtml.replace(/href=['"]https?:\/\/(?:www\.)?data\.go\.kr\/?['"]/gi, `href="${validUrls.officialUrl}"`);
   }
 
   // 3. 쿠팡 링크 교정 및 referrerpolicy="no-referrer" 부여

@@ -115,9 +115,13 @@ async function run() {
       );
 
       let verifiedUrl = officialSource.officialUrl;
+      let verifiedSiteName = officialSource.officialSiteName || '공인 포털';
       if (!verifiedOfficialLink.isHealthy || !verifiedOfficialLink.isContentMatched || (verifiedOfficialLink.relevanceScore ?? 0) < 75) {
         console.warn(`⚠️ [1호점 공식 링크 불일치/파킹 감지] "${officialSource.officialUrl}" (${verifiedOfficialLink.relevanceScore}점) -> 대한민국 공인 포털로 안전 치환!`);
         verifiedUrl = 'https://www.data.go.kr';
+        verifiedSiteName = '대한민국 공공데이터포털';
+        verifiedOfficialLink.linkType = 'VERIFIED_SEARCH';
+        verifiedOfficialLink.finalUrl = 'https://www.data.go.kr';
       }
 
       // [3단계] AI 기반 1차 단일 주제 초안 원고 작성
@@ -129,7 +133,7 @@ async function run() {
         topicResult.crossSources,
         publicData,
         verifiedUrl,
-        officialSource.officialSiteName || '공인 포털'
+        verifiedSiteName
       );
       initialPost.verifiedLinks = [verifiedOfficialLink];
       console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
@@ -146,7 +150,7 @@ async function run() {
 
       // ★ [품질 방어선] 75점 미만 시 차순위 주제로 자동 전환 & 재탐구
       if (!passed) {
-        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 13인 종합 점수(${finalScore}점)가 75점에 미달!`);
+        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 18인 종합 점수(${finalScore}점)가 75점에 미달!`);
         const nextCandidate = candidateTopics[candidateIdx + 1];
 
         if (nextCandidate) {
@@ -172,7 +176,7 @@ async function run() {
 
       // 링크 무결성 정제 및 WAF/보안 속성 부여
       finalPost.htmlContent = auditAndFixFinanceHtmlLinks(finalPost.htmlContent, {
-        officialUrl: officialSource.officialUrl,
+        officialUrl: verifiedUrl,
         coupang: `https://www.coupang.com/np/search?q=${encodeURIComponent(topicResult.searchKeywords[0] || topicResult.config.name)}`,
       });
 

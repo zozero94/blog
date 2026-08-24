@@ -46,6 +46,7 @@ export class BloggerClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok) {
@@ -80,6 +81,7 @@ export class BloggerClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(12000),
     });
 
     if (!res.ok) {
@@ -109,11 +111,49 @@ export class BloggerClient {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(12000),
     });
 
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Blogger 글 발행 실패 (${res.status}): ${errText}`);
+    }
+
+    const data = await res.json();
+    return {
+      id: data.id,
+      url: data.url,
+      title: data.title,
+      status: data.status,
+    };
+  }
+
+  /**
+   * 구글 블로그(Blogger) 글 수정 (Update)
+   */
+  async updatePost(postId: string, title: string, content: string, labels: string[] = []): Promise<BloggerPostResponse> {
+    const accessToken = await this.getAccessToken();
+    const url = `https://www.googleapis.com/blogger/v3/blogs/${this.blogId}/posts/${postId}`;
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        kind: 'blogger#post',
+        id: postId,
+        title,
+        content,
+        labels,
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Blogger 글 수정 실패 (${res.status}): ${errText}`);
     }
 
     const data = await res.json();
@@ -135,6 +175,7 @@ export class BloggerClient {
     const res = await fetch(url, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok && res.status !== 404) {
@@ -154,6 +195,7 @@ export class BloggerClient {
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok) {
@@ -181,6 +223,7 @@ export class BloggerClient {
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok) return null;
