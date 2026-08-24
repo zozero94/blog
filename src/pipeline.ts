@@ -102,12 +102,14 @@ async function run() {
   );
   console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-  // [4단계] 13인 멀티 전문가 2회 교차 감수 & 리라이팅 루프
-  console.log('\n[4/7] 🛡️ [자동 트리거] 13인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 가동');
-  const { finalPost, reviewSummary } = await executeTwoRoundReviewLoop(
+  // [4단계] 13인 멀티 전문가 종합 80점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
+  console.log('\n[4/7] 🛡️ [자동 트리거] 13인 전문가 종합 80점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
+  const { finalPost, reviewSummary, roundsExecuted } = await executeTwoRoundReviewLoop(
     geminiApiKey,
     initialPost,
-    publicData
+    publicData,
+    8.0, // 100점 만점 기준 80점 통과 기준
+    5    // 최대 5회 반복
   );
 
   // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사

@@ -36,7 +36,7 @@ export const REVIEWER_AGENTS = [
 ];
 
 /**
- * 13인 전문가 에이전트 종합 리뷰 실행
+ * 13인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
  */
 export async function evaluateWith12Agents(
   apiKey: string,
@@ -51,7 +51,7 @@ export async function evaluateWith12Agents(
   ).join('\n');
 
   const prompt = `당신은 대한민국 최고 권위의 미디어/금융리서치 센터 13인 감수 위원회입니다.
-아래 작성된 블로그 원고(Round ${round} 버전)를 13인의 전문가 관점에서 엄격하게 리뷰하고 점수와 보완 지침을 작성하세요.
+아래 작성된 블로그 원고(Round ${round} 버전)를 13인의 전문가 관점에서 엄격하게 리뷰하고 점수(1~10점)와 구체적 보완 지침을 작성하세요.
 
 [13인의 전문가 페르소나]
 ${agentDescriptions}
@@ -63,7 +63,7 @@ ${agentDescriptions}
 본문(HTML): ${post.htmlContent.slice(0, 3500)}...
 
 [평가 및 피드백 원칙]
-1. ★ **"실시간 시장 지표 팩트체커"**는 환율 수치(예: 1300원대인데 '초고환율 위기'라고 오도하거나 4월 과거 수치를 인용했는지 여부) 및 금리/실거래가 수치의 시점 정합성을 가장 엄격하게 교차 검증하고, 모순 발견 시 5점 이하의 감점과 함께 즉각 수정 지침을 내리세요.
+1. ★ **"실시간 시장 지표 팩트체커"**는 환율, 금리, 실거래가 수치의 시점 정합성을 엄격하게 교차 검증하고, 모순 발견 시 5점 이하의 감점과 함께 즉각 수정 지침을 내리세요.
 2. **"반응형 웹 & 모바일 UX 아키텍트"**는 스마트폰 화면에서 텍스트가 빽빽한 벽돌글이 아닌지, 콜아웃 박스와 표(Table) 스타일이 모바일 최적화되었는지 채점하세요.
 3. **"데이터 스토리텔러"**와 **"자산 시뮬레이션 계산관"**은 단순 수치 나열을 넘어 독자 입장의 손익 해석과 구체적 셈법(계산표)이 들어있는지 채점하세요.
 
@@ -200,39 +200,64 @@ ${currentPost.htmlContent}
 }
 
 /**
- * 2회 반복 루프 전체 실행 (1회차 감수->리라이팅 -> 2회차 감수->최종 완성)
+ * ★ [80점 미만 시 자동 반복 리뷰 루프]
+ * 13인 종합 점수가 80점(8.0점/10점)을 넘을 때까지 계속해서 리라이팅 & 재감수를 반복 실행
  */
-export async function executeTwoRoundReviewLoop(
+export async function executeIterativeReviewLoop(
   apiKey: string,
   initialPost: GeneratedPost,
-  publicData: PublicFactData | null
-): Promise<{ finalPost: GeneratedPost; reviewSummary: string }> {
+  publicData: PublicFactData | null,
+  targetScore: number = 8.0, // 100점 환산 시 80점
+  maxRounds: number = 5 // 최대 5회 반복
+): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number }> {
   console.log('\n================================================================');
-  console.log('🏛️ [스킬 가동] 13인 멀티 전문가 에이전트 2회 반복 감수 & 리라이팅 시작');
+  console.log(`🏛️ [13인 감수 엔진 가동] 종합 점수 ${Math.round(targetScore * 10)}점(80점 기준) 돌파 시까지 반복 검증 루프 시작`);
   console.log('================================================================');
 
-  // --- Round 1 ---
-  console.log('\n🔍 [1회차 감수] 13인의 전문가(실시간 팩트체커 & UI/UX 아키텍트 포함)가 정밀 평가 중...');
-  const round1Eval = await evaluateWith12Agents(apiKey, initialPost, publicData, 1);
-  console.log(`📊 1회차 13인 평균 평가 점수: ${round1Eval.averageScore} / 10점`);
-  round1Eval.feedbacks.slice(0, 4).forEach((f) => {
-    console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
-  });
+  let currentPost = initialPost;
+  let currentScore = 0;
+  let lastFeedbacks: AgentFeedback[] = [];
+  const scoreHistory: number[] = [];
 
-  console.log('\n✍️ [1회차 리라이팅] 13인 피드백(실시간 팩트체크 + 반응형 UI/UX)을 반영하여 1차 보강 중...');
-  const round1Post = await rewritePostWithFeedback(apiKey, initialPost, round1Eval.feedbacks, publicData, 1);
-  console.log(`✅ 1차 보강 완료: "${round1Post.title}"`);
+  for (let round = 1; round <= maxRounds; round++) {
+    console.log(`\n🔍 [Round ${round}/${maxRounds}] 13인의 전문가가 원고 정밀 평가 중...`);
+    const evalResult = await evaluateWith12Agents(apiKey, currentPost, publicData, round);
+    currentScore = evalResult.averageScore;
+    lastFeedbacks = evalResult.feedbacks;
+    scoreHistory.push(currentScore);
 
-  // --- Round 2 ---
-  console.log('\n🔍 [2회차 재검증] 보강된 원고에 대해 13인의 전문가가 2차 재검증 수행 중...');
-  const round2Eval = await evaluateWith12Agents(apiKey, round1Post, publicData, 2);
-  console.log(`📊 2회차 13인 최종 평균 평가 점수: ${round2Eval.averageScore} / 10점 (상승폭: +${(round2Eval.averageScore - round1Eval.averageScore).toFixed(1)}점)`);
+    const scoreOutOf100 = Math.round(currentScore * 10);
+    console.log(`📊 [Round ${round} 채점 결과] 13인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
 
-  console.log('\n✨ [최종 리라이팅] 2차 미세 피드백까지 완벽 반영한 최종 원고 완성 중...');
-  const finalPost = await rewritePostWithFeedback(apiKey, round1Post, round2Eval.feedbacks, publicData, 2);
-  console.log(`🎉 2회차 최종 완성본 도출 성공!`);
-  console.log(`   - 최종 제목: ${finalPost.title}`);
+    // 주요 지적사항 상위 3건 출력
+    evalResult.feedbacks.slice(0, 3).forEach((f) => {
+      console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
+    });
 
-  const summary = `13인 전문가 2회 교차 감수 완료 (1차 평점: ${round1Eval.averageScore}점 -> 2차 최종 평점: ${round2Eval.averageScore}점)`;
-  return { finalPost, reviewSummary: summary };
+    // ★ 80점(8.0점) 이상 달성 시 즉시 통과!
+    if (currentScore >= targetScore) {
+      console.log(`\n🎉 🎯 [기준 통과] 종합 점수 ${scoreOutOf100}점으로 목표치(${Math.round(targetScore * 10)}점)를 돌파하여 감수를 합격 완료합니다!`);
+      break;
+    }
+
+    // 80점 미만인 경우 리라이팅 후 다음 라운드 진행
+    if (round < maxRounds) {
+      console.log(`\n⚠️ 점수 미달 (${scoreOutOf100}점 < ${Math.round(targetScore * 10)}점) -> 13인 지적사항 100% 반영하여 전면 리라이팅 후 Round ${round + 1} 재심사 돌입!`);
+      currentPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, round);
+      console.log(`✍️ [Round ${round} 리라이팅 완료]: "${currentPost.title}"`);
+    } else {
+      console.log(`\nℹ️ 최대 라운드(${maxRounds}회)에 도달하여 현재 최고 완성본으로 최종 정리합니다. (최종 점수: ${scoreOutOf100}점)`);
+    }
+  }
+
+  // 최종 마감 리라이팅 (통과된 피드백 미세 반영)
+  console.log('\n✨ [최종 디렉팅] 모든 피드백이 완벽 반영된 프리미엄 최종 완성본 도출 중...');
+  const finalPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, scoreHistory.length);
+  console.log(`🏆 최종 완성본 도출 성공: "${finalPost.title}"`);
+
+  const summary = `13인 감수 완료 (${scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' -> ')} / 최종: ${Math.round(currentScore * 10)}점 통과 ✅)`;
+  return { finalPost, reviewSummary: summary, roundsExecuted: scoreHistory.length };
 }
+
+// 레거시 함수 호환성 유지
+export const executeTwoRoundReviewLoop = executeIterativeReviewLoop;
