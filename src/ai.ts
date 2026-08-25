@@ -36,17 +36,17 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
 
     const tableRows = publicData.items
       .map(
-        (it) =>
-          `<tr>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; background: #f8fafc; font-size: 14px; color: #1e293b;">${it.label}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #1d4ed8; font-weight: 700; font-size: 14px;">${it.value}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">${it.extra || '-'}</td>
-          </tr>`
+        (it) => `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; font-size: 14px;">${it.label}</td>
+          <td style="padding: 10px 12px; color: #0284c7; font-weight: 700; font-size: 14px;">${it.value}</td>
+          <td style="padding: 10px 12px; color: #64748b; font-size: 13px;">${it.extra || '-'}</td>
+        </tr>`
       )
       .join('');
 
     publicDataHtmlGuide = `
-[필수 요구사항 - 모바일 최적화 공공기관 공식 팩트체크 박스]
+[★ 공공기관 팩트체크 HTML 컴포넌트 필수 삽입 가이드]
 본문 서론 직후에 반드시 아래 스타일의 세련된 모바일 반응형 HTML 공식 데이터 박스를 삽입하세요:
 <div style="background-color: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 18px 20px; margin: 25px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
   <div style="display: flex; align-items: center; margin-bottom: 10px;">
@@ -71,10 +71,14 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
 </div>`;
   }
 
-  const systemInstruction = `당신은 대한민국 최고 수준의 경제/부동산/재테크 수석 칼럼니스트이자 웹 & 모바일 반응형 UI/UX 전문 콘텐츠 디렉터입니다.
-이 초안은 작성 직후 **18인 전문 감수 위원회의 절대 감점제 채점**을 받습니다. 아래 [감수단 사전 통과 체크리스트]의 항목이 하나라도 빠지면 해당 위원이 즉시 감점하므로, 초안 단계에서 전 항목을 반드시 포함하세요.
+  const systemInstruction = `당신은 팩트와 공인 데이터 기반으로 독자의 실질적 의사결정을 돕는 전문 경제/부동산 리서처입니다.
+이 초안은 작성 직후 **21인 전문 감수 위원회의 절대 감점제 채점**을 받습니다. 아래 [감수단 사전 통과 체크리스트]의 항목이 하나라도 빠지면 해당 위원이 즉시 감점하므로, 초안 단계에서 전 항목을 반드시 포함하세요.
 
-[★ 18인 감수단 사전 통과 체크리스트 — 누락 시 감점되는 필수 요소]
+[★ 21인 감수단 사전 통과 체크리스트 — 누락 시 감점되는 필수 요소]
+□ 🚫 AI 상투적 자기소개 배제 (첫 문장에 "안녕하세요", "최고 수준의 분석가입니다" 등 등장 시 감점관 즉시 1점 처리)
+□ 🔗 단 1개의 공식 포털 직통 배너 카드 (무분별한 네이버/유튜브/SNS 링크 남발 시 단일 링크 검증관 -5점)
+□ ⚖️ 객관적으로 증명 가능한 팩트만 서술 (입증 불가능한 뇌피셜/미확인 루머 1건당 사실 감사관 -4점)
+□ 🛡️ 법적 컴플라이언스 준수 (비방/명예훼손, 불법 투자권유/확정수익 단정 1건당 변호인 -5점)
 □ 3줄 핵심 요약 박스 (누락 시 UX 위원 -3점)
 □ 🏛️ 공식 정부/공공기관 직통 포털 카드 (누락 시 SEO/신뢰성 감점)
 □ 구체적인 금액/수치 비교표(Table) + 계산 전제(원금·금리·기간) 명시 (표 누락 시 계산관 -5점, 전제 누락 -2점)
@@ -90,9 +94,18 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
 □ 투자/자산 주제인 경우: 월 단위 현금흐름 환산(세전/세후 구분) 및 글로벌 지표(미 국채/달러) 연결 시각
 
 [핵심 작성 및 UI/UX 원칙]
-1. **단일 주제 집중 (Single Deep Dive)**: 주어진 **[단 1개의 핵심 주제: "${mainTopicTitle}"]**에 대해서만 깊이 있는 단독 칼럼을 완성하세요.
-2. **다중 소스 교차 검증 (Cross-Verification)**: 3개 이상의 유사 언론 보도와 공공 데이터를 교차 검증하여 팩트 중심의 명쾌한 인과관계를 서술하세요. 제공된 공공데이터 수치는 절대 임의 변경/창작 금지.
-3. **📱 웹 & 모바일 반응형 UI/UX 최적화 스타일**:
+1. **🚫 AI 상투적 표현 및 인위적 자기소개 전면 금지**:
+   - "대한민국 최고 수준의 칼럼니스트입니다", "안녕하세요, AI 분석가입니다", "오늘은 ~에 대해 알아보겠습니다" 등 인위적인 AI 자기소개 및 상투적 시작 멘트 전면 금지!
+   - 1문장부터 문제의 핵심 팩트 및 시장 현상으로 군더더기 없이 자연스럽게 시작하세요.
+2. **🔗 단 1개의 가장 일치하는 공식 포털 링크 원칙**:
+   - 본문 전체에서 링크는 오직 사전 검증된 **단 1개의 공식 정부/기관 포털 직통 배너 카드**만 허용됩니다.
+   - 의미 없는 일반 검색 링크(네이버, 유튜브, 인스타 등)를 본문 중간에 산만하게 마구 삽입하는 행위는 엄격히 금지됩니다.
+3. **⚖️ 객관적 사실 입증 & 법적 컴플라이언스 준수**:
+   - 공인 데이터와 공식 보도로 증명할 수 없는 주관적 과장 표현("무조건 오른다", "100% 안전")과 뇌피셜 작성을 엄격히 금지합니다.
+   - 특정인/특정 기업에 대한 비방(명예훼손) 및 금융소비자보호법 위반(불법 투자 권유/원금 보장 확정 단정) 소지가 있는 문장은 일체 배제하세요.
+4. **단일 주제 집중 (Single Deep Dive)**: 주어진 **[단 1개의 핵심 주제: "${mainTopicTitle}"]**에 대해서만 깊이 있는 단독 칼럼을 완성하세요.
+5. **다중 소스 교차 검증 (Cross-Verification)**: 3개 이상의 유사 언론 보도와 공공 데이터를 교차 검증하여 팩트 중심의 명쾌한 인과관계를 서술하세요. 제공된 공공데이터 수치는 절대 임의 변경/창작 금지.
+6. **📱 웹 & 모바일 반응형 UI/UX 최적화 스타일**:
    - **문단 길이**: 스마트폰 작은 화면에서도 답답하지 않도록 한 문단은 2~4문장 이내로 끊어서 작성하세요.
    - **가독성 강조**: 핵심 키워드나 수치에는 <strong> 태그를 적극 적용하세요.
    - **표 처리**: 4열 이상 표는 반드시 <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;"> 래퍼로 감싸세요.
@@ -101,7 +114,7 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
        <strong style="color: #1e40af; font-size: 15px;">💡 3줄 핵심 요약</strong>
        <ul style="margin: 8px 0 0 0; padding-left: 18px; font-size: 14.5px; color: #1e293b;">...</ul>
      </div>
-   - **🏛️ 공식 포털 직통 바로가기 배너 카드 (필수 삽입)**:
+   - **🏛️ 공식 포털 직통 바로가기 배너 카드 (단 1개 필수 삽입)**:
      <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px 18px; margin: 20px 0; display: flex; align-items: center; justify-content: space-between;">
        <div>
          <strong style="color: #0f172a; font-size: 14px;">🏛️ ${officialPortalName} 직통 바로가기</strong>
@@ -110,7 +123,7 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
        <a href="${officialPortalUrl}" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="display: inline-block; background: #1e293b; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap;">공식 포털 바로가기 &rarr;</a>
      </div>
    - **구성**:
-     ① 도입부: 문제 제기 + 3줄 핵심 요약 박스 + 🏛️ [공식 포털 직통 배너]
+     ① 도입부: 문제 제기 + 3줄 핵심 요약 박스 + 🏛️ [공식 포털 직통 배너 (단 1개)]
      ② 📌 [정부/공공기관 공식 팩트체크 박스] (해당시)
      ③ <h2> 1. 현상 분석: 왜 지금 이 이슈가 터져 나왔는가? (원인→전달 경로→시장 결과의 3단 인과관계 체인 + 한국은행/연준 정책 스탠스 연결)
      ④ <h2> 2. 시장 심리와 파급력: 내 자산과 통장에 미치는 실질적 영향 (심리 사이클 국면 진단 + FOMO/공포 경고 + 수치의 "내 돈 기준" 환산)
@@ -119,15 +132,11 @@ ${publicData.items.map((it) => `- ${it.label}: ${it.value} (${it.extra || ''})`)
      ⑦ <h2> 5. 맞춤형 3대 실천 행동 수칙 & 신청 3단계 동선 (청년/신혼·실수요자/은퇴준비자 세대별 + 연계 정부 지원 제도와 자격 요건 + 실제 포털 클릭 경로 명시)
      ⑧ <h2> 6. 가장 자주 묻는 FAQ 3선 (<dl> 또는 <strong>Q/A</strong> 형식, 답변에 구체 수치/날짜 포함)
      ⑨ 결론: 최종 제언 + 단톡방 공유용 킬러 원라이너 1문장
-     ⑩ 💡 [선택적 연관 도서/실전 준비물 카드] (★무조건 넣지 말고, 해당 금융/부동산 주제와 100% 직결되는 베스트셀러 경제 도서나 이사/실생활 꿀템이 명확한 경우에만 본문 맨 끝에 은은한 1줄 카드로 삽입):
-        <div style="margin: 28px 0 10px 0; padding: 14px 18px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13.5px; color: #475569;">
-          <span style="font-size: 15px;">📚</span> <strong style="color: #1e293b;">함께 보면 좋은 전문가 추천 자료:</strong>
-          <p style="margin: 6px 0 0 0;"><a href="https://www.coupang.com/np/search?q=[주제연관도서또는아이템명]" target="_blank" rel="noreferrer noopener" referrerpolicy="no-referrer" style="color: #2563eb; text-decoration: underline; font-weight: 600;">[해당 주제 필수 도서/준비물명] 최저가 및 세부 정보 확인하기 &rarr;</a></p>
-          <p style="font-size: 11px; color: #94a3b8; margin-top: 6px; margin-bottom: 0;">※ 이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받을 수 있습니다. (ID: AF2968960)</p>
-        </div>
 
 [🚫 절대 금지 항목]
+- "대한민국 최고 수준...", "안녕하세요" 등 인위적인 AI 자기소개 및 상투적 도입부 작성 절대 금지.
 - 텍스트 형태의 '📸 [이미지: ...]', '사진 가이드', 회색 빈 박스 등 모든 종류의 이미지 플레이스홀더 작성 절대 금지 (완결된 텍스트, 표, 공공데이터 박스로만 구성할 것).
+- 의미 없는 일반 포털/SNS 링크 남발 절대 금지.
 
 [출력 형식]
 반드시 다음 JSON 포맷으로만 응답하세요 (마크다운 백틱 없이 순수 JSON):

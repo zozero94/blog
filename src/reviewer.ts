@@ -231,10 +231,46 @@ export const REVIEWER_AGENTS = [
       '배당/이자 재원의 지속가능성(감액 위험) 검토가 없으면 -2점',
     ],
   },
+  {
+    id: 'single_link_precision',
+    name: '단일 고정밀 링크 적합성 검증관',
+    role: '본문에 주제와 100% 일치하는 단 1개의 공식/대표 링크만 정밀하게 배치되었는지 검증하는 링크 순도 전담 위원',
+    scope: '오직 "단일 링크 정밀도와 남발 방지"만: 공식 포털 카드의 단 1개 존재 여부, 무분별한 네이버/유튜브/SNS 링크 남발 차단',
+    forbidden: '링크 작동 기술(시스템 감사 관할), SEO 키워드는 절대 채점 금지',
+    penalties: [
+      '본문 내 불필요하거나 의미 없는 일반 검색/SNS 링크가 1개라도 남발되면 -5점',
+      '주제와 100% 직결되는 핵심 공식 링크가 아니면 -4점',
+      '핵심 링크가 2개 이상 산만하게 분산 배치되어 있으면 -3점',
+    ],
+  },
+  {
+    id: 'fact_verifiability',
+    name: '객관적 사실 & 검증가능성 감사관',
+    role: '출처 없는 뇌피셜, 주관적 과장, 과학적/통계적으로 입증할 수 없는 허위·과장 서술만 적발하는 사실 무결성 전담 위원',
+    scope: '오직 "객관적 검증 가능성"만: 공인 데이터/공식 보도로 증명 불가능한 뇌피셜, 주관적 단정, 근거 없는 수치 추정',
+    forbidden: '논리 모순(논리 검증관 관할), 수치의 시점(팩트체커 관할)은 절대 채점 금지',
+    penalties: [
+      '객관적으로 입증되지 않은 주관적 단정이나 뇌피셜 1건당 -4점',
+      '공인 출처가 없는 통계나 근거 없는 인과관계 서술 1건당 -3점',
+      '"무조건 대박", "100% 안전" 등 비과학적/비검증 과장 표현 1건당 -3점',
+    ],
+  },
+  {
+    id: 'legal_compliance',
+    name: '법적 리스크 & 컴플라이언스 변호인',
+    role: '명예훼손, 저작권, 허위사실 유포, 공정위 표시광고법, 금융소비자보호법 위반 요소만 검증하는 법률 전담 위원',
+    scope: '오직 "법적 컴플라이언스"만: 특정인/상호 비방(명예훼손), 불법 투자 자문/확정 수익률 보장(금소법), 대가성 미표기',
+    forbidden: '세법 수치 검증(정책/세무 관할), 문체는 절대 채점 금지',
+    penalties: [
+      '특정 개인이나 브랜드에 대한 근거 없는 비방/명예훼손 소지 표현 1건당 -5점',
+      '확정 수익률 보장 또는 1:1 투자 자문 형태의 금소법 위반 소지 서술 1건당 -5점',
+      '공정위 대가성 고지 누락 또는 부당 비교 광고 1건당 -4점',
+    ],
+  },
 ];
 
 /**
- * 18인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
+ * 21인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
  * - 각 위원은 자신의 전담 영역만, 절대 감점제로 채점한다.
  */
 export async function evaluateWith12Agents(
@@ -254,8 +290,8 @@ export async function evaluateWith12Agents(
 ${a.penalties.map((p) => `     · ${p}`).join('\n')}`
   ).join('\n\n');
 
-  const prompt = `당신은 대한민국 최고 권위의 금융 리서치 센터 18인 감수 위원회 시뮬레이터입니다.
-아래 블로그 원고(Round ${round} 버전)를 18인 각자의 관점에서 **독립적으로** 채점하세요.
+  const prompt = `당신은 대한민국 최고 권위의 금융 리서치 센터 21인 감수 위원회 시뮬레이터입니다.
+아래 블로그 원고(Round ${round} 버전)를 21인 각자의 관점에서 **독립적으로** 채점하세요.
 
 [위원회 공통 헌장 — 절대 준수]
 1. 각 위원은 자신의 "전담 영역"만 채점하고, "채점 금지 영역"은 절대 언급하지 않는다. (역할 중복 채점 = 무효)
@@ -263,7 +299,7 @@ ${a.penalties.map((p) => `     · ${p}`).join('\n')}`
 3. improvements는 "어느 섹션에 · 무엇을 · 어떻게"가 담긴 실행 가능한 지시 최대 2개로 작성한다. 모호한 지시("보강 필요") 금지.
 4. 감점 사유가 전혀 없으면 9~10점을 부여하고 improvements에 "감점 없음 - 현행 유지"라고 쓴다. (관대화 방지: 감점 사유가 있는데 8점 이상을 주는 것 금지)
 
-[18인의 전문가 페르소나 및 감점 규칙]
+[21인의 전문가 페르소나 및 감점 규칙]
 ${agentDescriptions}
 
 [평가 대상 원고]
@@ -284,7 +320,7 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
     "score": 7,
     "strengths": "전담 영역 안에서 훌륭한 점 (1문장)",
     "improvements": "[적용 감점 규칙과 점수] + 어느 섹션에 무엇을 어떻게 고칠지 실행 지시 (최대 2개)"
-  }, ... (총 18개, 배열 순서는 페르소나 순서와 동일)
+  }, ... (총 21개, 배열 순서는 페르소나 순서와 동일)
 ]`;
 
   try {
@@ -352,17 +388,20 @@ export async function rewritePostWithFeedback(
     .map((f) => `- [${f.agentName}] 유지할 강점: ${f.strengths}`)
     .join('\n');
 
-  const systemInstruction = `당신은 대한민국 최고 수준의 금융/경제 수석 전문 에디터이자 콘텐츠 디렉터입니다.
-18인 감수 위원회의 피드백(Round ${round})을 반영하여 기존 원고를 전면 리라이팅하세요.
+  const systemInstruction = `당신은 대한민국 최고 권위의 금융/경제 수석 전문 에디터이자 콘텐츠 디렉터입니다.
+21인 감수 위원회의 피드백(Round ${round})을 반영하여 기존 원고를 전면 리라이팅하세요.
 
 [피드백 반영 우선순위 및 충돌 조정 규칙 — 절대 준수]
 1. **감점 지시 100% 우선 반영**: "필수 반영 지시" 목록은 우선순위(낮은 점수) 순이다. 위에서부터 하나도 빠짐없이 본문에 반영한다.
-2. **충돌 시 서열**: ① 팩트/법령 수치 정정 > ② 필수 구성 요소 추가(리스크 경고·계산표·FAQ·실천 수칙) > ③ 구조/레이아웃(문단 분리·요약 박스) > ④ 문체/표현. 하위 서열 지시가 상위 서열 지시와 충돌하면 상위를 따른다.
-3. **강점 보존**: 8점 이상 위원이 칭찬한 요소는 삭제/훼손하지 말고 유지한다.
-4. **필수 골격 불변**: 3줄 요약 박스, 공식 포털 직통 카드, 시뮬레이션 계산표(Table), ⚠️ 리스크 경고 문단, 3대 실천 수칙, FAQ 3선은 어떤 경우에도 삭제 금지. 없다면 이번 리라이팅에서 반드시 생성한다.
-5. **공공데이터 수치 불변**: 제공된 공공데이터 팩트의 수치는 임의로 변경/창작하지 않는다.
-6. **모바일 반응형**: 모든 문단은 2~4문장, 핵심 수치는 <strong>, 표는 overflow-x 스크롤 래퍼 유지.
-7. 🚫 [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 절대 작성 금지.
+2. **🚫 AI 상투적 자기소개 및 뇌피셜 배제**: "안녕하세요", "최고 수준의 분석가입니다", "오늘은 ~에 대해 알아보겠습니다" 등 인위적 AI 도입부 전면 삭제하고 곧바로 본론 팩트로 시작한다. 객관적으로 입증 불가능한 뇌피셜은 전면 삭제/정정한다.
+3. **🔗 단일 공식 포털 링크 원칙**: 본문 전체에서 링크는 단 1개의 공식 포털 카드만 유지하고, 불필요한 네이버/유튜브/SNS 링크는 전면 삭제한다.
+4. **🛡️ 법적 컴플라이언스 준수**: 특정인/브랜드 비방(명예훼손) 및 불법 투자권유/확정수익 단정 표현을 전면 배제한다.
+5. **충돌 시 서열**: ① 팩트/법령/법적 컴플라이언스 정정 > ② 단일 링크/필수 구성 요소 추가 > ③ 구조/레이아웃 > ④ 문체/표현.
+6. **강점 보존**: 8점 이상 위원이 칭찬한 요소는 삭제/훼손하지 말고 유지한다.
+7. **필수 골격 불변**: 3줄 요약 박스, 공식 포털 직통 카드(단 1개), 시뮬레이션 계산표(Table), ⚠️ 리스크 경고 문단, 3대 실천 수칙, FAQ 3선은 반드시 생성/보존한다.
+8. **공공데이터 수치 불변**: 제공된 공공데이터 팩트의 수치는 임의로 변경/창작하지 않는다.
+9. **모바일 반응형**: 모든 문단은 2~4문장, 핵심 수치는 <strong>, 표는 overflow-x 스크롤 래퍼 유지.
+10. 🚫 [이미지: ...], 사진 영역 등 어떠한 플레이스홀더도 절대 작성 금지.
 
 [출력 형식]
 반드시 다음 JSON 형식으로만 응답하세요:
@@ -427,7 +466,7 @@ export async function executeIterativeReviewLoop(
   maxRounds: number = 4
 ): Promise<{ finalPost: GeneratedPost; reviewSummary: string; roundsExecuted: number; passed: boolean; finalScore: number }> {
   console.log('\n================================================================');
-  console.log(`🏛️ [1호점 18인 감수 엔진 가동] 최소 2회 + 75점(7.5/10) 돌파제 루프 시작`);
+  console.log(`🏛️ [1호점 21인 감수 엔진 가동] 최소 2회 + 75점(7.5/10) 돌파제 루프 시작`);
   console.log('================================================================');
 
   let currentPost = initialPost;
@@ -436,14 +475,14 @@ export async function executeIterativeReviewLoop(
   const scoreHistory: number[] = [];
 
   for (let round = 1; round <= maxRounds; round++) {
-    console.log(`\n🔍 [Round ${round}/${maxRounds}] 18인의 금융/경제/세무/부동산 전문가가 원고 정밀 평가 중...`);
+    console.log(`\n🔍 [Round ${round}/${maxRounds}] 21인의 금융/경제/세무/부동산/법률 전문가가 원고 정밀 평가 중...`);
     const evalResult = await evaluateWith12Agents(apiKey, currentPost, publicData, round);
     currentScore = evalResult.averageScore;
     lastFeedbacks = evalResult.feedbacks;
     scoreHistory.push(currentScore);
 
     const scoreOutOf100 = Math.round(currentScore * 10);
-    console.log(`📊 [Round ${round} 채점 결과] 18인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
+    console.log(`📊 [Round ${round} 채점 결과] 21인 종합 평균: ${currentScore} / 10점 (${scoreOutOf100}점 / 100점)`);
 
     evalResult.feedbacks.slice(0, 3).forEach((f) => {
       console.log(`   - [${f.agentName}] (${f.score}점): ${f.improvements}`);
@@ -456,7 +495,7 @@ export async function executeIterativeReviewLoop(
     }
 
     if (round < maxRounds) {
-      console.log(`\n✍️ [Round ${round} 리라이팅] 18인 지적사항을 반영하여 전면 리라이팅 진행 중...`);
+      console.log(`\n✍️ [Round ${round} 리라이팅] 21인 지적사항을 반영하여 전면 리라이팅 진행 중...`);
       currentPost = await rewritePostWithFeedback(apiKey, currentPost, lastFeedbacks, publicData, round);
       console.log(`✅ [Round ${round} 리라이팅 완료]: "${currentPost.title}"`);
     }
@@ -512,17 +551,19 @@ export async function executeFinanceChiefEditorFinalInspection(
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `당신은 대한민국 최고 권위의 금융/경제 리서치 총괄 편집국장(Editor-in-Chief Main Agent)입니다.
-18인 콘텐츠 감수 위원회와 5인 엔지니어링 감사를 모두 통과한 원고에 대해 "최종 발행 승인 폴리싱"만 수행하세요.
+21인 콘텐츠 감수 위원회와 5인 엔지니어링 감사를 모두 통과한 원고에 대해 "최종 발행 승인 폴리싱"만 수행하세요.
 
 [편집국장의 권한과 한계 — 절대 준수]
 1. **폴리싱 전용**: 새 주장/새 수치를 창작하지 않는다. 이미 감수된 팩트·수치·계산표·링크는 절대 변경 금지.
-2. **삭제 금지 골격**: 3줄 요약 박스, 공식 포털 직통 카드, 계산표(Table), ⚠️ 리스크 경고, 3대 실천 수칙, FAQ 3선은 반드시 그대로 보존한다.
-3. **허용 작업 (오직 이것만)**:
+2. **🚫 AI 상투적 자기소개 완전 퇴출**: 도입부에 "안녕하세요", "최고의 분석가" 등 AI식 자기소개 잔재가 남아있다면 전면 삭제하고 자연스럽게 본론으로 시작하도록 다듬는다.
+3. **🔗 단 1개의 공식 링크만 유지**: 불필요하거나 의미 없는 일반 검색 링크는 전면 삭제하고, 오직 단 1개의 공식 포털 카드만 유지한다.
+4. **삭제 금지 골격**: 3줄 요약 박스, 공식 포털 직통 카드(단 1개), 계산표(Table), ⚠️ 리스크 경고, 3대 실천 수칙, FAQ 3선은 반드시 그대로 보존한다.
+5. **허용 작업 (오직 이것만)**:
    - 지루한 서론/중복 수식어/번역투 문장 제거 및 문장 다듬기
    - 섹션 간 연결 브릿지 문장 추가로 리듬감 부여
    - 제목의 마지막 헤드라인 폴리싱 (핵심 키워드는 유지)
    - 5인 엔지니어링 감사가 보고한 잔여 기술 이슈(닫는 태그, 보안 속성)의 최종 반영 확인
-4. 🚫 플레이스홀더([이미지: ...]) 발견 시 해당 문구만 삭제한다.
+6. 🚫 플레이스홀더([이미지: ...]) 발견 시 해당 문구만 삭제한다.
 
 [출력 형식]
 반드시 다음 JSON 포맷으로만 응답하세요:
@@ -534,7 +575,7 @@ export async function executeFinanceChiefEditorFinalInspection(
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"]
 }`;
 
-  const prompt = `[18인 콘텐츠 감수 이력]: ${reviewHistory}
+  const prompt = `[21인 콘텐츠 감수 이력]: ${reviewHistory}
 [5인 개발/아키텍처 감사 보고]: ${devIssuesSummary || '기술적 이슈 없음 (전원 합격)'}
 [원고 제목]: ${post.title}
 [카테고리]: ${post.categories.join(', ')}
