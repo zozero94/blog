@@ -3,12 +3,11 @@ import { BlogCategory } from './types.js';
 import { collectMultipleTopicCandidates, CATEGORY_CONFIGS } from './collector.js';
 import { fetchPublicDataForCategory } from './public-data.js';
 import { generateSingleTopicPost } from './ai.js';
-import { executeTwoRoundReviewLoop } from './reviewer.js';
+import { executeIterativeReviewLoop } from './reviewer.js';
 import {
   findOfficialFinancialSourceUrl,
   verifyUrlAndCaptureScreenshot,
   auditAndFixFinanceHtmlLinks,
-  executeAutomatedCodeReview,
 } from './verifier.js';
 import { BloggerClient } from './blogger.js';
 import { TelegramClient } from './telegram.js';
@@ -138,9 +137,9 @@ async function run() {
       initialPost.verifiedLinks = [verifiedOfficialLink];
       console.log(`✅ 초안 작성 완료: "${initialPost.title}"`);
 
-      // [4단계] 18인 멀티 전문가 종합 75점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
-      console.log('\n[4/7] 🛡️ [자동 트리거] 18인 전문가 종합 75점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
-      const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeTwoRoundReviewLoop(
+      // [4단계] 21인 멀티 전문가 종합 75점 돌파 시까지 반복 교차 감수 & 리라이팅 루프
+      console.log('\n[4/6] 🛡️ [자동 트리거] 21인 전문가 종합 75점 돌파 시까지 반복 감수 & 자가 리라이팅 가동');
+      const { finalPost, reviewSummary, roundsExecuted, passed, finalScore } = await executeIterativeReviewLoop(
         geminiApiKey,
         initialPost,
         publicData,
@@ -150,7 +149,7 @@ async function run() {
 
       // ★ [품질 방어선] 75점 미만 시 차순위 주제로 자동 전환 & 재탐구
       if (!passed) {
-        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 18인 종합 점수(${finalScore}점)가 75점에 미달!`);
+        console.warn(`\n🚫 [후보 ${candidateIdx + 1} 반려] 21인 종합 점수(${finalScore}점)가 75점에 미달!`);
         const nextCandidate = candidateTopics[candidateIdx + 1];
 
         if (nextCandidate) {
@@ -169,25 +168,19 @@ async function run() {
         continue; // 다음 후보로 넘어가서 파이프라인 재실행!
       }
 
-      // [5단계] 5대 Code-Review 전문 에이전트 배포 코드 및 렌더링 무결성 심사
-      console.log('\n[5/7] 💻 [code-review 스킬 가동] 5대 전문 에이전트 배포 코드 & 렌더링 무결성 심사');
-      const codeReviewResult = await executeAutomatedCodeReview(geminiApiKey, finalPost, 'https://zozero94.com');
-      console.log(`📊 5대 Code-Review 종합 평점: ${codeReviewResult.averageScore} / 10점 (${codeReviewResult.passed ? '심사 통과 ✅' : '보완 필요 ⚠️'})`);
-
-      // 링크 무결성 정제 및 WAF/보안 속성 부여
+      // [5단계] 링크 무결성 정제 및 WAF/보안 속성 부여
+      console.log('\n[5/6] 🔒 링크 무결성 정제 및 WAF/보안 속성 최종 부여');
       finalPost.htmlContent = auditAndFixFinanceHtmlLinks(finalPost.htmlContent, {
         officialUrl: verifiedUrl,
         coupang: `https://www.coupang.com/np/search?q=${encodeURIComponent(topicResult.searchKeywords[0] || topicResult.config.name)}`,
       });
 
-      // [6단계] Google Blogger 임시글(Draft) 자동 등록
-      console.log('\n[6/7] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록');
+      // [6단계] Google Blogger 임시글(Draft) 자동 등록 & 텔레그램 승인 알림 발송
+      console.log('\n[6/6] 📝 Google Blogger(애드센스 공식 블로그) 임시글(Draft) 등록 및 알림 발송');
       const bloggerPost = await bloggerClient.createDraftPost(finalPost);
       console.log(`✅ Google Blogger 등록 성공! (ID: ${bloggerPost.id}, URL: ${bloggerPost.url})`);
 
-      // [7단계] 텔레그램 승인 알림 발송
-      console.log('\n[7/7] 📱 텔레그램 승인 알림 발송');
-      const linkText = `🌐 <b>내 도메인 웹진:</b> <a href="https://zozero94.com">https://zozero94.com</a>
+      const linkText = `🌐 <b>웹진 미리보기:</b> <a href="https://zozero94.com/post.html?id=${bloggerPost.id}">https://zozero94.com/post.html?id=${bloggerPost.id}</a>
 📱 <b>구글 블로그:</b> <a href="${bloggerPost.url}">${bloggerPost.url}</a>`;
 
       const messageText = `📢 <b>[인사이트 리서치] ${escapeHtml(topicResult.config.name)} 포스팅 승인 요청</b>
@@ -197,8 +190,7 @@ async function run() {
 💡 <b>3줄 핵심 요약:</b>
 ${escapeHtml(finalPost.summary)}
 
-🏛️ <b>13인 콘텐츠 감수:</b> ${escapeHtml(reviewSummary)}
-💻 <b>5대 Code-Review 심사:</b> ${codeReviewResult.averageScore}/10점 (배포 적합성 통과 ✅)
+🏛️ <b>21인 콘텐츠 감수 & 5인 시스템 감사:</b> ${escapeHtml(reviewSummary)}
 🏷️ <b>태그:</b> ${escapeHtml(finalPost.tags.map((t) => `#${t.replace(/\s+/g, '')}`).join(' '))}
 
 ${linkText}

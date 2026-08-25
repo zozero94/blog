@@ -269,11 +269,16 @@ export const REVIEWER_AGENTS = [
   },
 ];
 
+function sanitizeScore(score: any, fallback = 6): number {
+  const num = typeof score === 'number' && Number.isFinite(score) ? score : Number(score);
+  return Number.isFinite(num) ? Math.max(1, Math.min(10, num)) : fallback;
+}
+
 /**
  * 21인 전문가 에이전트 종합 리뷰 실행 (10점 만점 / 100점 환산)
  * - 각 위원은 자신의 전담 영역만, 절대 감점제로 채점한다.
  */
-export async function evaluateWith12Agents(
+export async function evaluateWith21FinanceAgents(
   apiKey: string,
   post: GeneratedPost,
   publicData: PublicFactData | null,
@@ -307,7 +312,7 @@ ${agentDescriptions}
 카테고리: ${post.categories.join(', ')}
 태그: ${post.tags.join(', ')}
 본문(HTML):
-${post.htmlContent.slice(0, 4000)}...
+${post.htmlContent}
 
 [원고 작성 시 반영된 공공데이터 팩트 (팩트체커 대조용)]
 ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
@@ -329,11 +334,12 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
       config: {
         responseMimeType: 'application/json',
         temperature: 0.3,
+        maxOutputTokens: 8192,
       },
     });
 
     const parsed = safeJsonParse<AgentFeedback[]>(response.text || '[]', []);
-    const validFeedbacks = parsed.length > 0 ? parsed : REVIEWER_AGENTS.map((a) => ({
+    const rawFeedbacks = parsed.length > 0 ? parsed : REVIEWER_AGENTS.map((a) => ({
       agentName: a.name,
       role: a.role,
       score: 6,
@@ -341,8 +347,13 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
       improvements: '모바일 가독성 및 자산 시뮬레이션 수치 보강 필요',
     }));
 
-    const totalScore = validFeedbacks.reduce((acc, f) => acc + (f.score || 6), 0);
-    const averageScore = Number((totalScore / validFeedbacks.length).toFixed(1));
+    const validFeedbacks = rawFeedbacks.map((f) => ({
+      ...f,
+      score: sanitizeScore(f.score, 6),
+    }));
+
+    const totalScore = validFeedbacks.reduce((acc, f) => acc + f.score, 0);
+    const averageScore = Number((totalScore / Math.max(1, validFeedbacks.length)).toFixed(1));
 
     return { feedbacks: validFeedbacks, averageScore };
   } catch (e) {
@@ -359,8 +370,10 @@ ${publicData ? JSON.stringify(publicData, null, 2) : '공공데이터 없음'}
   }
 }
 
+export const evaluateWith12Agents = evaluateWith21FinanceAgents;
+
 /**
- * 18인의 피드백을 반영하여 원고 전면 리라이팅
+ * 21인의 피드백을 반영하여 원고 전면 리라이팅
  * - 감점 위원(낮은 점수) 지시 우선 반영 + 충돌 조정 규칙 내장
  */
 export async function rewritePostWithFeedback(
@@ -373,9 +386,9 @@ export async function rewritePostWithFeedback(
   const ai = new GoogleGenAI({ apiKey });
 
   // 낮은 점수(치명 지적) 순으로 정렬하여 우선순위를 프롬프트에 그대로 노출
-  const sorted = [...feedbacks].sort((a, b) => (a.score || 10) - (b.score || 10));
-  const critical = sorted.filter((f) => (f.score || 10) <= 7);
-  const passedNotes = sorted.filter((f) => (f.score || 10) >= 8);
+  const sorted = [...feedbacks].sort((a, b) => sanitizeScore(a.score, 10) - sanitizeScore(b.score, 10));
+  const critical = sorted.filter((f) => sanitizeScore(f.score, 10) <= 7);
+  const passedNotes = sorted.filter((f) => sanitizeScore(f.score, 10) >= 8);
 
   const criticalSummary = critical
     .map(
@@ -456,7 +469,7 @@ ${keepSummary || '없음'}
 }
 
 /**
- * 최소 2회 이상 + 75점 돌파제 + 5인 개발/아키텍처 감사 + 메인 총괄 에디터 최종 마스터 검수 루프
+ * 최소 2회 이상 + 75점 돌파제 + 메인 총괄 에디터 마스터 폴리싱 + 5인 개발/아키텍처 최종 게이트키퍼 감사 루프
  */
 export async function executeIterativeReviewLoop(
   apiKey: string,
@@ -476,7 +489,7 @@ export async function executeIterativeReviewLoop(
 
   for (let round = 1; round <= maxRounds; round++) {
     console.log(`\n🔍 [Round ${round}/${maxRounds}] 21인의 금융/경제/세무/부동산/법률 전문가가 원고 정밀 평가 중...`);
-    const evalResult = await evaluateWith12Agents(apiKey, currentPost, publicData, round);
+    const evalResult = await evaluateWith21FinanceAgents(apiKey, currentPost, publicData, round);
     currentScore = evalResult.averageScore;
     lastFeedbacks = evalResult.feedbacks;
     scoreHistory.push(currentScore);
@@ -502,28 +515,27 @@ export async function executeIterativeReviewLoop(
   }
 
   // =========================================================================
-  // ★ [4.8단계: 5인의 개발/아키텍처 집중형 엔지니어링 감사]
-  // =========================================================================
-  console.log('\n💻 [4.8단계] 5인의 개발/아키텍처 집중형 엔지니어링 에이전트 시스템 감사 가동...');
-  const devAudit = auditEngineeringAndArchitecture(currentPost);
-  currentPost.htmlContent = devAudit.sanitizedHtml;
-  console.log(`🛠️ 개발/아키텍처 종합 평점: ${devAudit.averageDevScore} / 10점 (${devAudit.overallPassed ? '전원 통과' : '경미한 수정'})`);
-  devAudit.feedbacks.forEach((f) => {
-    console.log(`   - [${f.agentName}] (${f.score}점): ${f.recommendations.join(', ')}`);
-  });
-
-  // =========================================================================
-  // ★ [메인 총괄 에이전트] 총괄 편집국장 최종 마스터 검수 및 발행 승인 단계
+  // ★ [4.8단계: 메인 총괄 에이전트] 총괄 편집국장 최종 마스터 검수 및 폴리싱 단계
   // =========================================================================
   console.log('\n👑 [메인 총괄 에이전트] 총괄 수석 에디터(편집국장) 최종 마스터 검수 및 폴리싱 가동...');
   const masterPost = await executeFinanceChiefEditorFinalInspection(
     apiKey,
     currentPost,
     publicData,
-    scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' ➔ '),
-    devAudit.feedbacks.map((f) => `[${f.agentName}] ${f.recommendations.join(', ')}`).join('\n')
+    scoreHistory.map((s, idx) => `R${idx + 1}:${Math.round(s * 10)}점`).join(' ➔ ')
   );
   console.log(`🎖️ [최종 마스터 승인 완료] 수석 편집국장 최종 검수 완료: "${masterPost.title}"`);
+
+  // =========================================================================
+  // ★ [4.9단계: 5인 개발/아키텍처 최종 게이트키퍼 소독] (LLM 재작성 후 최종 무결성 보장)
+  // =========================================================================
+  console.log('\n💻 [4.9단계] 5인의 개발/아키텍처 집중형 엔지니어링 에이전트 최종 시스템 감사 가동...');
+  const devAudit = auditEngineeringAndArchitecture(masterPost);
+  masterPost.htmlContent = devAudit.sanitizedHtml;
+  console.log(`🛠️ 개발/아키텍처 최종 평점: ${devAudit.averageDevScore} / 10점 (${devAudit.overallPassed ? '전원 통과' : '경미한 자동 수정 완료'})`);
+  devAudit.feedbacks.forEach((f) => {
+    console.log(`   - [${f.agentName}] (${f.score}점): ${f.recommendations.join(', ')}`);
+  });
 
   const finalScore = Math.round(currentScore * 10);
   const passed = currentScore >= targetScore;
