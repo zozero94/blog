@@ -7,8 +7,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const clientSecret = process.env.BLOGGER_CLIENT_SECRET || '';
   const refreshToken = process.env.BLOGGER_REFRESH_TOKEN || '';
 
-  // Vercel Edge 캐싱 (10초 캐시, 60초 백그라운드 갱신)
-  res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
@@ -19,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (id) {
       const post = await blogger.getPostById(String(id));
       if (!post) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.status(404).json({ error: 'Post not found' });
       }
 
@@ -35,6 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }, {}),
       };
 
+      res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
       return res.status(200).json(formatted);
     }
 
@@ -74,9 +74,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
     return res.status(200).json({ found: posts.length, posts });
   } catch (error) {
     console.error('API Error:', error);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     return res.status(500).json({ error: 'Failed to fetch posts from Google Blogger' });
   }
 }

@@ -243,7 +243,14 @@
       });
     });
 
-    fetchPosts();
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlId = new URLSearchParams(window.location.search).get('id');
+      if (urlId) {
+        window.location.replace(`/post.html?id=${urlId}`);
+        return;
+      }
+      fetchPosts();
+    });
   </script>
 </body>
 </html>

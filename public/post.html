@@ -8,6 +8,10 @@
   <!-- Naver Search Advisor Verification -->
   <meta name="naver-site-verification" content="7af3aa8d22c3d47e03c58e66ca1fd516347bf1ed" />
 
+  <!-- Pretendard Font Preload -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4169469417741632" crossorigin="anonymous"></script>
 </head>
@@ -38,31 +42,46 @@
     </div>
   </footer>
 
-  <!-- Unified Post Viewer Engine -->
-  <script src="/shared/post-viewer.js"></script>
+  <!-- Unified Post Viewer Engine with CDN Fallback Guard -->
+  <script src="/shared/post-viewer.js" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/zozero94/shared-ui@main/post-viewer.js';"></script>
   <script>
-    initPostViewer({
-      brandName: '인사이트 머니 & 리얼티',
-      brandLogo: '🏛️',
-      brandSubTitle: 'Realty & Money',
-      homeUrl: '/',
-      accentColor: '#3182f6',
-      accentBg: '#eff6ff',
-      authorName: '인사이트 리서치 센터',
-      authorDesc: '국토부·한국은행·DART 공인 데이터 기반',
-      badgeText: '공식 팩트체크 완료 ✅',
-      badgeColor: '#166534',
-      badgeBg: '#dcfce7',
-      readingTimeText: '5분 완독',
-      footerCopyright: '© 2026 인사이트 머니 & 리얼티 (zozero94.com)',
-      crossLink: {
-        title: '🔥 실시간 핫플·트렌드·쇼핑 꿀템이 궁금하다면?',
-        desc: 'SNS 화제의 핫플레이스 및 바이럴 트렌드 매거진을 확인하세요.',
-        url: 'https://trend.zozero94.com',
-        btnText: '트렌드 나우 →',
-        btnBg: '#ff2d55',
+    window.addEventListener('load', function() {
+      if (typeof initPostViewer !== 'function') {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/gh/zozero94/shared-ui@main/post-viewer.js';
+        s.onload = function() { initApp(); };
+        document.body.appendChild(s);
+      } else {
+        initApp();
       }
     });
+
+    function initApp() {
+      if (typeof initPostViewer === 'function') {
+        initPostViewer({
+          brandName: '인사이트 머니 & 리얼티',
+          brandLogo: '🏛️',
+          brandSubTitle: 'Realty & Money',
+          homeUrl: '/',
+          accentColor: '#3182f6',
+          accentBg: '#eff6ff',
+          authorName: '인사이트 리서치 센터',
+          authorDesc: '국토부·한국은행·DART 공인 데이터 기반',
+          badgeText: '공식 팩트체크 완료 ✅',
+          badgeColor: '#166534',
+          badgeBg: '#dcfce7',
+          readingTimeText: '5분 완독',
+          footerCopyright: '© 2026 인사이트 머니 & 리얼티 (zozero94.com)',
+          crossLink: {
+            title: '🔥 실시간 핫플·트렌드·쇼핑 꿀템이 궁금하다면?',
+            desc: 'SNS 화제의 핫플레이스 및 바이럴 트렌드 매거진을 확인하세요.',
+            url: 'https://trend.zozero94.com',
+            btnText: '트렌드 나우 →',
+            btnBg: '#ff2d55',
+          }
+        });
+      }
+    }
   </script>
 </body>
 </html>
