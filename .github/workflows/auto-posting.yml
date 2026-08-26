@@ -12,14 +12,16 @@ on:
     inputs:
       category:
         description: '포스팅할 카테고리 선택'
-        required: true
+        required: false
         default: 'auto'
-        type: choice
-        options:
-          - auto
-          - economy
-          - real_estate
-          - finance
+      postId:
+        description: '수정할 Post ID (비워두면 신규 생성)'
+        required: false
+        default: ''
+      userFeedback:
+        description: '사용자 수정 지시사항'
+        required: false
+        default: ''
 
 jobs:
   run-pipeline:
@@ -52,9 +54,18 @@ jobs:
           BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
           BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
           BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          CATEGORY: ${{ github.event.inputs.category }}
+          REVISE_POST_ID: ${{ github.event.inputs.postId }}
+          USER_FEEDBACK: ${{ github.event.inputs.userFeedback }}
         run: |
-          if [ "${{ github.event.inputs.category }}" != "" ] && [ "${{ github.event.inputs.category }}" != "auto" ]; then
-            npm run pipeline -- --category=${{ github.event.inputs.category }}
-          else
-            npm run pipeline
+          ARGS=""
+          if [ -n "$CATEGORY" ] && [ "$CATEGORY" != "auto" ]; then
+            ARGS="$ARGS --category=$CATEGORY"
           fi
+          if [ -n "$REVISE_POST_ID" ]; then
+            ARGS="$ARGS --post-id=\"$REVISE_POST_ID\""
+          fi
+          if [ -n "$USER_FEEDBACK" ]; then
+            ARGS="$ARGS --feedback=\"$USER_FEEDBACK\""
+          fi
+          npm run pipeline -- $ARGS

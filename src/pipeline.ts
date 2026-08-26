@@ -1,9 +1,9 @@
 import 'dotenv/config';
-import { BlogCategory } from './types.js';
+import { BlogCategory, AgentFeedback, GeneratedPost } from './types.js';
 import { collectMultipleTopicCandidates, CATEGORY_CONFIGS } from './collector.js';
 import { fetchPublicDataForCategory } from './public-data.js';
 import { generateSingleTopicPost } from './ai.js';
-import { executeIterativeReviewLoop } from './reviewer.js';
+import { executeIterativeReviewLoop, rewritePostWithFeedback } from './reviewer.js';
 import {
   findOfficialFinancialSourceUrl,
   verifyUrlAndCaptureScreenshot,
@@ -44,7 +44,7 @@ function escapeHtml(text: string): string {
 
 async function run() {
   console.log('================================================================');
-  console.log('🚀 [금융 1호점] 13인 AI 에이전트 & 멀티모달 랜딩 검증 자동화 파이프라인');
+  console.log('🚀 [금융 1호점] 21인 AI 에이전트 & 멀티모달 랜딩 검증 자동화 파이프라인');
   console.log('================================================================');
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -65,11 +65,139 @@ async function run() {
     process.exit(1);
   }
 
+  const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
+  const telegramClient = new TelegramClient(telegramBotToken, telegramChatId);
+
+  // CLI 인자 및 환경변수 파싱
+  const args = process.argv.slice(2);
+  let revisePostId = process.env.REVISE_POST_ID || '';
+  let userFeedback = process.env.USER_FEEDBACK || '';
+
+  for (const arg of args) {
+    if (arg.startsWith('--post-id=')) {
+      revisePostId = arg.split('=')[1].replace(/^["']|["']$/g, '');
+    } else if (arg.startsWith('--feedback=')) {
+      userFeedback = arg.split('=')[1].replace(/^["']|["']$/g, '');
+    }
+  }
+
+  // =========================================================================
+  // ★ [원격 피드백 수정 모드] 기존 Blogger 글 로드 ➔ 사용자 지침 주입 ➔ 21인 감수 루프 ➔ Blogger PUT
+  // =========================================================================
+  if (revisePostId) {
+    console.log(`\n🔄 [금융 1호점 피드백 원격 수정 모드 가동]`);
+    console.log(`   - 대상 Post ID: "${revisePostId}"`);
+    console.log(`   - 사용자 지침: "${userFeedback || '전면 고도화'}"`);
+
+    const existingPost = await bloggerClient.getPostById(revisePostId);
+    if (!existingPost) {
+      throw new Error(`해당 Post ID(${revisePostId})의 글을 Blogger에서 찾을 수 없습니다.`);
+    }
+
+    const category = getCategoryFromArgs();
+    const publicData = await fetchPublicDataForCategory(category, {
+      ecosKey,
+      dataGoKrKey,
+      dartKey,
+    });
+
+    const officialSource = await findOfficialFinancialSourceUrl(
+      geminiApiKey,
+      existingPost.title,
+      category
+    );
+
+    const verifiedSource = await verifyUrlAndCaptureScreenshot(
+      geminiApiKey,
+      officialSource.officialUrl,
+      existingPost.title,
+      'official'
+    );
+
+    const currentPost: GeneratedPost = {
+      title: existingPost.title,
+      summary: '기존 원고 피드백 수정',
+      categories: [CATEGORY_CONFIGS[category].name],
+      tags: existingPost.labels || [CATEGORY_CONFIGS[category].name, '재테크'],
+      htmlContent: existingPost.content || '',
+      metaDescription: existingPost.title || '금융/경제 분석',
+      verifiedLinks: [verifiedSource],
+    };
+
+    const userFeedbackItem: AgentFeedback = {
+      agentName: '★ 사용자 긴급 디렉팅',
+      role: '텔레그램 원격 총괄 디렉터',
+      score: 3,
+      strengths: '기존 금융/경제 분석 맥락 유지',
+      improvements: `[사용자 직접 지시]: ${userFeedback}. 이 지침을 다른 모든 규칙보다 100% 최우선으로 본문에 반영하여 수정할 것.`,
+    };
+
+    console.log('\n[수정 4단계] 21인 전문 감수단 & 사용자 피드백 결합 리라이팅 루프 실행...');
+    const initialRewritten = await rewritePostWithFeedback(
+      geminiApiKey,
+      currentPost,
+      [userFeedbackItem],
+      publicData,
+      1
+    );
+
+    const reviewResult = await executeIterativeReviewLoop(
+      geminiApiKey,
+      initialRewritten,
+      publicData,
+      7.5,
+      4
+    );
+
+    const finalPost = reviewResult.finalPost;
+    const reviewSummary = reviewResult.reviewSummary;
+
+    finalPost.htmlContent = auditAndFixFinanceHtmlLinks(
+      finalPost.htmlContent,
+      { officialUrl: verifiedSource.finalUrl }
+    );
+
+    console.log(`\n[수정 5단계] Google Blogger 원고 즉시 교체 (Post ID: ${revisePostId})...`);
+    await bloggerClient.updatePost(revisePostId, finalPost.title, finalPost.htmlContent, existingPost.labels || []);
+    console.log(`✅ Blogger 글 수정 완료!`);
+
+    const tagText = finalPost.tags.map((t) => `#${t.replace(/\s+/g, '')}`).join(' ');
+    const previewWebzineUrl = `https://zozero94.com/post.html?id=${revisePostId}`;
+    const cleanBloggerUrl = existingPost.url || `https://www.blogger.com/blog/post/edit/${bloggerBlogId}/${revisePostId}`;
+
+    const messageText = `📢 <b>[금융/경제 1호점] 포스팅 피드백 수정 완료</b>
+
+📝 <b>제목:</b> ${escapeHtml(finalPost.title)}
+
+💡 <b>3줄 핵심 요약:</b>
+${escapeHtml(finalPost.summary)}
+
+🔗 <b>공식 팩트 출처:</b> <a href="${escapeHtml(verifiedSource.finalUrl)}">${escapeHtml(verifiedSource.pageTitle || officialSource.officialSiteName)}</a>
+🏛️ <b>21인 콘텐츠 감수 & 5인 시스템 감사:</b> [피드백 반영] ${escapeHtml(reviewSummary)}
+🏷️ <b>태그:</b> ${escapeHtml(tagText)}
+
+🌐 <b>웹진 미리보기:</b> <a href="${previewWebzineUrl}">${previewWebzineUrl}</a>
+📱 <b>구글 블로그:</b> <a href="${cleanBloggerUrl}">${cleanBloggerUrl}</a>
+
+아래 버튼을 누르면 <b>즉시 공식 발행</b>됩니다:`;
+
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: '✅ 즉시 정식 발행', callback_data: `publish:${bloggerBlogId}:${revisePostId}` },
+          { text: '❌ 임시글 삭제', callback_data: `delete:${bloggerBlogId}:${revisePostId}` },
+        ],
+      ],
+    };
+
+    await telegramClient.sendMessageWithMarkup(messageText, replyMarkup);
+    return;
+  }
+
   const category = getCategoryFromArgs();
   console.log(`📌 포스팅 분야: [${category}] ${CATEGORY_CONFIGS[category].name}`);
 
   // [사전 단계] 기존 발행된 글 목록 실시간 조회 (중복 주제 원천 차단용)
-  const bloggerClient = new BloggerClient(bloggerBlogId, bloggerClientId, bloggerClientSecret, bloggerRefreshToken);
   let pastTitles: string[] = [];
   try {
     const recentPosts = await bloggerClient.getPosts(20);
@@ -82,7 +210,6 @@ async function run() {
   // [1단계] 상위 3대 핵심 이슈 후보군 선별 (과거 글 중복 배제)
   console.log('\n[1/7] 📰 과거 주제와 중복 없는 상위 3대 핫이슈 후보 선별 & 교차 수집');
   const candidateTopics = await collectMultipleTopicCandidates(geminiApiKey, category, pastTitles, 3);
-  const telegramClient = new TelegramClient(telegramBotToken, telegramChatId);
 
   let publishedSuccess = false;
 

@@ -2,6 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { BloggerClient } from '../src/blogger.js';
 import { TelegramClient } from '../src/telegram.js';
 
+function escapeHtml(text: string): string {
+  return (text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -124,17 +131,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ message: 'Unauthorized' });
       }
 
-      // 1) 도움말 명령어
+      // 1) 답장(Reply) 기반 피드백 원격 수정 처리
+      if (message.reply_to_message && message.reply_to_message.text) {
+        const replyText = message.reply_to_message.text;
+        const idMatch = replyText.match(/(?:id=|Post ID:\s*<code>?|Blogger ID:\s*<code>?)(\d{10,20})/i);
+        const targetPostId = idMatch ? idMatch[1] : '';
+
+        if (targetPostId) {
+          const isTrendBlog = replyText.includes('2호점') || replyText.includes('trend.zozero94.com');
+          const repoName = isTrendBlog ? 'zozero94/trend' : 'zozero94/blog';
+          const workflowFile = isTrendBlog ? 'daily-trend-post.yml' : 'auto-posting.yml';
+          const blogNameKo = isTrendBlog ? '트렌드 2호점' : '금융/경제 1호점';
+          const reviewerCountKo = isTrendBlog ? '18인의 트렌드 감수단' : '21인의 금융/경제 감수단';
+
+          if (!githubPat) {
+            await telegram.sendMessage(
+              `⚠️ <b>GitHub Token 미설정</b>\nGitHub Actions를 원격 트리거하려면 Vercel 환경변수에 <code>GITHUB_PAT</code>를 등록해야 합니다.`
+            );
+            return res.status(200).json({ success: false });
+          }
+
+          await telegram.sendMessage(
+            `⏳ <b>[${blogNameKo} 피드백 접수 ➔ 파이프라인 재가동]</b>\n\n` +
+            `📝 <b>수정 대상 ID:</b> <code>${targetPostId}</code>\n` +
+            `💬 <b>사용자 지침:</b> "${escapeHtml(text)}"\n\n` +
+            `🚀 ${reviewerCountKo} 및 멀티모달 랜딩 검증, 5인 엔지니어링 감사를 100% 거쳐 원고를 재작성합니다.\n⏱️ 약 1분 후 새로 감수된 승인 알림이 발송됩니다.`
+          );
+
+          const ghRes = await fetch(`https://api.github.com/repos/${repoName}/actions/workflows/${workflowFile}/dispatches`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${githubPat}`,
+              Accept: 'application/vnd.github.v3+json',
+              'User-Agent': 'TelegramBot-Webhook',
+            },
+            body: JSON.stringify({
+              ref: 'main',
+              inputs: {
+                postId: targetPostId,
+                userFeedback: text,
+              },
+            }),
+          });
+
+          if (!ghRes.ok) {
+            const errText = await ghRes.text();
+            await telegram.sendMessage(`❌ GitHub Actions 트리거 실패:\n<code>${errText}</code>`);
+          }
+
+          return res.status(200).json({ success: true, mode: 'reply_feedback', postId: targetPostId });
+        }
+      }
+
+      // 2) 도움말 명령어
       if (text === '/start' || text === '/help' || text === '도움말' || text === '메뉴') {
         const helpMsg = `🤖 <b>AI 블로그 자동화 텔레그램 컨트롤러</b>
 
-원하시는 명령어를 입력하시면 AI가 즉시 분석 및 글 생성을 시작합니다:
+원하시는 명령어를 입력하거나 승인 카드에 <b>답장(Reply)</b>을 남기시면 AI가 즉시 분석 및 글 생성을 시작합니다:
+
+💬 <b>원고 피드백 수정 (가장 편리한 방법)</b>
+• 봇이 보낸 승인 메시지에 <b>[답장]</b> 누르고 수정 지시 입력!
+  ➔ 예: <i>"링크 네이버 지도로 교체하고 2번째 문단 대기시간 팁 보강해줘"</i>
+  ➔ 18인/21인 감수단 + 멀티모달 검증 파이프라인 100% 자동 재완주
 
 🔥 <b>트렌드 웹진 2호점 (trend.zozero94.com)</b>
 • <code>트렌드</code> 또는 <code>/trend</code>
   ➔ 실시간 1등 트렌드 즉시 자동 작성
 • <code>트렌드 [키워드]</code> 또는 <code>/trend [키워드]</code>
-  ➔ 예: <code>트렌드 두바이초콜릿</code>, <code>/trend 암백신</code>
+  ➔ 예: <code>트렌드 두바이초콜릿</code>, <code>/trend 런던베이글</code>
 
 📊 <b>금융/부동산 1호점 (zozero94.com)</b>
 • <code>금융</code> 또는 <code>/finance</code>
@@ -148,8 +212,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true });
       }
 
-      // 2) 트렌드 웹진 2호점 트리거 & 피드백 리라이팅
-      if (text.startsWith('/trend') || text.startsWith('트렌드') || text.startsWith('트랜드') || text.startsWith('수정') || text.startsWith('리라이팅') || text.startsWith('피드백')) {
+      // 3) 트렌드 웹진 2호점 신규 생성 트리거
+      if (text.startsWith('/trend') || text.startsWith('트렌드') || text.startsWith('트랜드')) {
         let customKeyword = '';
         if (text.startsWith('/trend')) {
           customKeyword = text.replace('/trend', '').trim();
@@ -157,12 +221,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           customKeyword = text.replace('트렌드', '').trim();
         } else if (text.startsWith('트랜드')) {
           customKeyword = text.replace('트랜드', '').trim();
-        } else if (text.startsWith('수정')) {
-          customKeyword = text.replace('수정', '').trim();
-        } else if (text.startsWith('리라이팅')) {
-          customKeyword = text.replace('리라이팅', '').trim();
-        } else if (text.startsWith('피드백')) {
-          customKeyword = text.replace('피드백', '').trim();
         }
 
         if (!githubPat) {
@@ -173,10 +231,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await telegram.sendMessage(
-          `🚀 <b>[트렌드 2호점 가동]</b>\n${customKeyword ? `🎯 타겟/피드백: <b>"${customKeyword}"</b>\n` : '📡 실시간 1등 대세 트렌드 5대 소스(구글/유튜브/틱톡/릴스/네이버) 탐색 중...\n'}15인의 전문 위원회 감수 루프 (최소 2회 + 80점 돌파제)를 가동합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
+          `🚀 <b>[트렌드 2호점 가동]</b>\n${customKeyword ? `🎯 타겟 키워드: <b>"${escapeHtml(customKeyword)}"</b>\n` : '📡 실시간 1등 대세 트렌드 탐색 중...\n'}18인의 전문 위원회 감수 루프 (최소 2회 + 75점 돌파제) 및 멀티모달 검증을 가동합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
         );
 
-        // GitHub Actions Workflow Dispatch 호출 (zozero94/trend)
         const ghRes = await fetch('https://api.github.com/repos/zozero94/trend/actions/workflows/daily-trend-post.yml/dispatches', {
           method: 'POST',
           headers: {
@@ -198,7 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true });
       }
 
-      // 3) 금융/부동산 1호점 트리거
+      // 4) 금융/부동산 1호점 신규 생성 트리거
       if (text.startsWith('/finance') || text.startsWith('/economy') || text.startsWith('/realestate') || text === '금융' || text === '부동산' || text === '경제') {
         let category = 'auto';
         if (text.includes('부동산') || text.startsWith('/realestate')) category = 'real_estate';
@@ -213,10 +270,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await telegram.sendMessage(
-          `📊 <b>[금융/부동산 1호점 가동]</b>\n카테고리: <b>${category}</b>\n한국은행·국토부 공공데이터 결합 및 13인 감수 루프를 시작합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
+          `📊 <b>[금융/부동산 1호점 가동]</b>\n카테고리: <b>${category}</b>\n한국은행·국토부 공공데이터 결합 및 21인 감수 루프를 시작합니다!\n\n⏱️ 약 1~2분 후 승인 알림이 도착합니다.`
         );
 
-        // GitHub Actions Workflow Dispatch 호출 (zozero94/blog)
         const ghRes = await fetch('https://api.github.com/repos/zozero94/blog/actions/workflows/auto-posting.yml/dispatches', {
           method: 'POST',
           headers: {
