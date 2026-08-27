@@ -2,12 +2,12 @@ name: Daily AI Blog Auto-Posting
 
 on:
   schedule:
-    # 00:00 UTC = 09:00 KST (시사·경제)
-    - cron: '0 0 * * *'
-    # 03:00 UTC = 12:00 KST (부동산)
-    - cron: '0 3 * * *'
-    # 07:00 UTC = 16:00 KST (재테크·금융)
-    - cron: '0 7 * * *'
+    # 00:15 UTC = 09:15 KST (시사·경제)
+    - cron: '15 0 * * *'
+    # 03:15 UTC = 12:15 KST (부동산)
+    - cron: '15 3 * * *'
+    # 07:15 UTC = 16:15 KST (재테크·금융)
+    - cron: '15 7 * * *'
   workflow_dispatch:
     inputs:
       category:
