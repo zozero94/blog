@@ -12,5 +12,11 @@
       "source": "/feed",
       "destination": "/api/rss"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "15 0,3,7,9 * * *"
+    }
   ]
 }
